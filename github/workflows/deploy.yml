@@ -1,0 +1,68 @@
+# Название рабочего процесса
+name: Deploy Next.js Static Site to GitHub Pages
+
+# Запускать рабочий процесс при пуше в ветку 'main'
+on:
+  push:
+    branches: ["main"]
+  # Позволяет запускать рабочий процесс вручную
+  workflow_dispatch:
+
+# Устанавливаем разрешения, необходимые для развертывания
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Настройка среды
+concurrency:
+  cancel-in-progress: true
+  group: pages
+
+jobs:
+  # Задача сборки (Build)
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Проверка кода
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Настройка Node.js
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # 3. Установка зависимостей
+      - name: Install dependencies
+        run: npm install
+
+      # 4. Сборка проекта Next.js (создает папку 'out')
+      - name: Build project (Static Export)
+        run: npm run build
+
+      # 5. Настройка GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # 6. Загрузка артефактов (папка 'out' с собранным статическим сайтом)
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './out' # Папка с результатом статического экспорта
+
+  # Задача развертывания (Deploy)
+  deploy:
+    # Запускается только после успешного завершения задачи 'build'
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      # Собственно, сам деплой на GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
