@@ -4,7 +4,7 @@ import { REQUIRED_PARAMS, OPTIONAL_PARAMS } from "../../staticData/queryParams.j
 import { VALID_CURRENCY_CODES } from "../../staticData/currencies.js";
 import { VALID_GAMES } from "../../staticData/games.js";
 
-// Создаем Set'ы здесь
+// Создаем Set'ы
 const ALLOWED_QUERY_PARAMS_SET = new Set([...REQUIRED_PARAMS, ...OPTIONAL_PARAMS]);
 const VALID_CURRENCY_CODES_SET = new Set(VALID_CURRENCY_CODES.map(c => c.toUpperCase()));
 
@@ -14,50 +14,64 @@ export const validateLaunchURLStage = (urlToValidate) => {
     let components = { gameId: '', payload: {} }; 
     let params = {};
     
-    // 1. Строгая проверка протокола
-    if (!urlToValidate.toLowerCase().startsWith('http://') && !urlToValidate.toLowerCase().startsWith('https://')) {
-         validationErrors.push('URL должен начинаться с "http://" или "https://".');
+    // Ожидаемый префикс для этого окружения
+    const REQUIRED_PREFIX = "https://dev-test.spribe.io/games/launch/";
+
+    // 1. Жесткая проверка начала URL
+    if (!urlToValidate.startsWith(REQUIRED_PREFIX)) {
+         validationErrors.push(`Для этого типа проверки URL должен начинаться строго с "${REQUIRED_PREFIX}"`);
+         // Если префикс не совпадает, дальнейший парсинг бессмысленен
+         return { errors: validationErrors, components: null };
     }
 
-    if (validationErrors.length === 0) {
-        // 2.1. ПРОВЕРКА: Двойной слэш (//) вне протокола
-        const inputWithoutProtocol = urlToValidate.replace(/^https?:\/\//i, '');
-        if (inputWithoutProtocol.includes('//')) {
-            validationErrors.push('Обнаружены последовательные слэши "//" вне протокола.');
-        }
-        
-        // 2.2. ПРОВЕРКА: Двойной амперсанд (&&)
-        if (urlToValidate.includes('&&')) {
-            validationErrors.push('Обнаружен двойной амперсанд "&&" в URL.');
+    // 2.1. ПРОВЕРКА: Двойной слэш (//) вне протокола
+    // Убираем протокол, чтобы проверить остальную часть
+    const inputWithoutProtocol = urlToValidate.replace(/^https?:\/\//i, '');
+    // В данном случае, так как мы знаем точный хост и путь, // могут быть только в параметрах или ошибочно в пути игры
+    if (inputWithoutProtocol.includes('//')) {
+        validationErrors.push('Обнаружены последовательные слэши "//" вне протокола.');
+    }
+    
+    // 2.2. ПРОВЕРКА: Двойной амперсанд (&&)
+    if (urlToValidate.includes('&&')) {
+        validationErrors.push('Обнаружен двойной амперсанд "&&" в URL.');
+    }
+
+    try {
+        urlObject = new URL(urlToValidate);
+
+        // 2.3. ПРОВЕРКА: Висячий слэш перед параметрами (если не пустой path)
+        if (urlObject.pathname.endsWith('/') && urlObject.search) {
+            validationErrors.push('Путь URL заканчивается слэшем "/" непосредственно перед строкой запроса.');
         }
 
-        try {
-            urlObject = new URL(urlToValidate);
-            
-            urlObject.searchParams.forEach((value, key) => {
-                if (key !== '') {
-                    params[key] = value;
-                }
-            });
-            
-            // НОВАЯ ЛОГИКА: gameId из хоста
-            const hostParts = urlObject.host.split('.'); // e.g., ['aviator', 'staging', 'spribe', 'dev']
-            const gameId = hostParts[0] || '';
-
-            components = {
-                protocol: urlObject.protocol,
-                host: urlObject.host,
-                // pathname: urlObject.pathname,
-                gameId: gameId, // gameId из хоста!
-                payload: params
-            };
-        } catch (e) {
-            if (validationErrors.length === 0) {
-                 validationErrors.push('Некорректный формат URL.');
+        urlObject.searchParams.forEach((value, key) => {
+            if (key !== '') {
+                params[key] = value;
             }
+        });
+        
+        // НОВАЯ ЛОГИКА: gameId из пути (после /games/launch/)
+        // URL: https://dev-test.spribe.io/games/launch/aviator
+        // Pathname: /games/launch/aviator
+        // Parts: ['', 'games', 'launch', 'aviator'] -> index 3
+        const pathParts = urlObject.pathname.split('/');
+        const extractedGameId = pathParts[3] || '';
+
+        components = {
+            protocol: urlObject.protocol,
+            host: urlObject.host,
+            gameId: extractedGameId, 
+            payload: params
+        };
+
+    } catch (e) {
+        if (validationErrors.length === 0) {
+             validationErrors.push('Некорректный формат URL.');
         }
     }
     
+    // Если были критические ошибки парсинга
     if (validationErrors.length > 0 && !components.gameId) {
         return { errors: validationErrors, components: null };
     }
@@ -72,7 +86,7 @@ export const validateLaunchURLStage = (urlToValidate) => {
 
     // 4. ПРОВЕРКА: Название игры (Game ID)
     if (!components.gameId) {
-        validationErrors.push('Название игры (Game ID) отсутствует в хосте (subdomain) URL.'); // Ошибка для Staging
+        validationErrors.push('Название игры (Game ID) отсутствует в пути URL (после /games/launch/).'); 
     } else {
         const gameId = components.gameId.toLowerCase();
         if (!VALID_GAMES.includes(gameId)) {
