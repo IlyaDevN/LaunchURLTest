@@ -1,8 +1,9 @@
-//components\UrlCheckerForm.jsx
+// components/UrlCheckerForm.jsx
 
 import { useState } from "react";
 import { validateLaunchURLProd } from "../utils/validators/validateLaunchURLProd.js";
 import { validateLaunchURLStage } from "../utils/validators/validateLaunchURLStage.js";
+import ValidationResult from "./ValidationResult.jsx";
 
 const UrlCheckerForm = () => {
     const [urlInput, setUrlInput] = useState('');
@@ -97,26 +98,23 @@ const UrlCheckerForm = () => {
                 
             </div>
 
-            {/* Отображение ошибки */}
             {error && (
                 <div className="mt-6 p-4 bg-red-100 text-red-800 border border-red-500 rounded-xl shadow-md">
-                    <h4 className="font-bold text-lg mb-1">❌ Ошибка валидации:</h4>
-                    <p className="whitespace-pre-wrap">{error}</p>
+                    <div className="flex items-start">
+                        <span className="text-2xl mr-3">❌</span>
+                        <div>
+                            <h4 className="font-bold text-lg mb-1">Ошибка валидации:</h4>
+                            <p className="whitespace-pre-wrap text-sm">{error}</p>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            {/* Отображение разобранных параметров */}
-            {parsedParams && (
-                <div className="mt-6 p-6 bg-gray-50 rounded-xl shadow-xl border border-gray-200">
-                    <h3 className="text-xl font-bold mb-3 text-gray-900">
-                        {error ? '⚠️ Разобранные компоненты (есть ошибки):' : '✅ Разобранные компоненты (Локально OK):'}
-                    </h3>
-                    <pre className="p-4 bg-gray-100 rounded-lg overflow-auto text-sm text-gray-800 border border-gray-300">
-                        {JSON.stringify(parsedParams, null, 2)}
-                    </pre>
-                </div>
+            {/* Отображение результата */}
+            {parsedParams && !error && (
+                <ValidationResult data={parsedParams} />
             )}
-            
+
             <div className="mt-6 p-4 text-center text-gray-500 text-sm">
                 <p>Этот валидатор выполняет клиентские проверки синтаксиса, обязательных параметров и кодов валют.</p>
             </div>

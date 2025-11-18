@@ -33,9 +33,7 @@ export const validateLaunchURLStage = (urlToValidate) => {
 
         try {
             urlObject = new URL(urlToValidate);
-
-            // 2.3. ПРОВЕРКА (УДАЛЕНА): Висячий слэш нерелевантен
-
+            
             urlObject.searchParams.forEach((value, key) => {
                 if (key !== '') {
                     params[key] = value;
