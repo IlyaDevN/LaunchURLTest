@@ -12,6 +12,8 @@ export default function HomePage() {
     switch (activeTab) {
       case "validator":
         return <UrlCheckerForm />;
+      case "roundDetails":
+        return <RoundDetails />;
       case "settings":
         return <SettingsPanel />;
       default:
