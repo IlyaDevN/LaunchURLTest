@@ -20,24 +20,30 @@ export const validateLaunchURLStage = (urlToValidate) => {
     // 1. Жесткая проверка начала URL
     if (!urlToValidate.startsWith(REQUIRED_PREFIX)) {
          validationErrors.push(`Для этого типа проверки URL должен начинаться строго с "${REQUIRED_PREFIX}"`);
-         // Если префикс не совпадает, дальнейший парсинг бессмысленен
          return { errors: validationErrors, components: null };
     }
 
+    // === ИГНОРИРОВАНИЕ RETURN_URL ПРИ ПРОВЕРКЕ СИНТАКСИСА ===
+    // Создаем копию строки, где содержимое return_url заменено на заглушку.
+    // Это нужно, чтобы слэши (//) внутри return_url не вызывали ошибок валидации основного URL.
+    const urlForSyntaxCheck = urlToValidate.replace(/return_url=[^&]*/gi, "return_url=skipped");
+
     // 2.1. ПРОВЕРКА: Двойной слэш (//) вне протокола
-    // Убираем протокол, чтобы проверить остальную часть
-    const inputWithoutProtocol = urlToValidate.replace(/^https?:\/\//i, '');
-    // В данном случае, так как мы знаем точный хост и путь, // могут быть только в параметрах или ошибочно в пути игры
+    // Используем urlForSyntaxCheck вместо urlToValidate
+    const inputWithoutProtocol = urlForSyntaxCheck.replace(/^https?:\/\//i, '');
+    
     if (inputWithoutProtocol.includes('//')) {
         validationErrors.push('Обнаружены последовательные слэши "//" вне протокола.');
     }
     
     // 2.2. ПРОВЕРКА: Двойной амперсанд (&&)
-    if (urlToValidate.includes('&&')) {
+    // Также используем очищенную строку
+    if (urlForSyntaxCheck.includes('&&')) {
         validationErrors.push('Обнаружен двойной амперсанд "&&" в URL.');
     }
 
     try {
+        // Парсим ОРИГИНАЛЬНЫЙ URL, чтобы получить реальные параметры
         urlObject = new URL(urlToValidate);
 
         // 2.3. ПРОВЕРКА: Висячий слэш перед параметрами (если не пустой path)
@@ -52,9 +58,6 @@ export const validateLaunchURLStage = (urlToValidate) => {
         });
         
         // НОВАЯ ЛОГИКА: gameId из пути (после /games/launch/)
-        // URL: https://dev-test.spribe.io/games/launch/aviator
-        // Pathname: /games/launch/aviator
-        // Parts: ['', 'games', 'launch', 'aviator'] -> index 3
         const pathParts = urlObject.pathname.split('/');
         const extractedGameId = pathParts[3] || '';
 
@@ -102,8 +105,13 @@ export const validateLaunchURLStage = (urlToValidate) => {
     });
     
     // 6. ПРОВЕРКА: Слэши (/) в значениях обязательных параметров
+    // (return_url обычно не является обязательным параметром, но даже если он там окажется, 
+    // проверка идет по ключам из REQUIRED_PARAMS)
     REQUIRED_PARAMS.forEach(key => {
         const value = components.payload[key];
+        // Доп. проверка: если этот параметр return_url, мы его пропускаем (на всякий случай)
+        if (key === 'return_url') return;
+
         if (value && value.includes('/')) {
             validationErrors.push(`Некорректное значение: Обязательный параметр "${key}" содержит слэш (/).`);
         }

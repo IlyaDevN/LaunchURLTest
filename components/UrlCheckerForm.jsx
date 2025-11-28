@@ -45,9 +45,9 @@ const UrlCheckerForm = () => {
 
     return (
         <div className="font-sans w-full max-w-7xl mx-auto">
-            <h1 className="text-3xl font-extrabold text-gray-900 mb-6 text-center">
+            {/* <h1 className="text-3xl font-extrabold text-gray-900 mb-6 text-center">
                 Launch URL validator
-            </h1>
+            </h1> */}
             <div className="flex flex-col space-y-4 p-6 bg-white rounded-xl shadow-2xl border border-gray-200">
                 {/* Выпадающий список для выбора типа валидации */}
                 <div>

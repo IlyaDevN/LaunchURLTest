@@ -20,22 +20,28 @@ export const validateLaunchURLProd = (urlToValidate) => {
     // 1. Жесткая проверка начала URL
     if (!urlToValidate.startsWith(REQUIRED_PREFIX)) {
          validationErrors.push(`Для этого типа проверки URL должен начинаться строго с "${REQUIRED_PREFIX}"`);
-         // Прерываем валидацию, если домен неверный
          return { errors: validationErrors, components: null };
     }
 
+    // === ИГНОРИРОВАНИЕ RETURN_URL ПРИ ПРОВЕРКЕ СИНТАКСИСА ===
+    // Создаем копию строки, где содержимое return_url заменено на заглушку
+    const urlForSyntaxCheck = urlToValidate.replace(/return_url=[^&]*/gi, "return_url=skipped");
+
     // 2.1. ПРОВЕРКА: Двойной слэш (//) вне протокола
-    const inputWithoutProtocol = urlToValidate.replace(/^https?:\/\//i, '');
+    // Используем urlForSyntaxCheck
+    const inputWithoutProtocol = urlForSyntaxCheck.replace(/^https?:\/\//i, '');
+    
     if (inputWithoutProtocol.includes('//')) {
         validationErrors.push('Обнаружены последовательные слэши "//" вне протокола.');
     }
     
     // 2.2. ПРОВЕРКА: Двойной амперсанд (&&)
-    if (urlToValidate.includes('&&')) {
+    if (urlForSyntaxCheck.includes('&&')) {
         validationErrors.push('Обнаружен двойной амперсанд "&&" в URL.');
     }
 
     try {
+        // Парсим ОРИГИНАЛЬНЫЙ URL
         urlObject = new URL(urlToValidate);
 
         // 2.3. ПРОВЕРКА: Висячий слэш в конце пути перед параметрами
@@ -50,11 +56,7 @@ export const validateLaunchURLProd = (urlToValidate) => {
         });
         
         // НОВАЯ ЛОГИКА: gameId из пути
-        // URL: https://launch.spribegaming.com/aviator
-        // Pathname: /aviator
-        // Parts: ['', 'aviator'] -> index 1
         const pathParts = urlObject.pathname.split('/');
-        // Берем элемент с индексом 1. Если там пусто (например просто домен/), будет undefined
         const extractedGameId = pathParts[1] || '';
 
         components = {
@@ -101,6 +103,9 @@ export const validateLaunchURLProd = (urlToValidate) => {
     // 6. ПРОВЕРКА: Слэши (/) в значениях обязательных параметров
     REQUIRED_PARAMS.forEach(key => {
         const value = components.payload[key];
+        // Пропускаем проверку для return_url, если он вдруг попал в список обязательных
+        if (key === 'return_url') return;
+
         if (value && value.includes('/')) {
             validationErrors.push(`Некорректное значение: Обязательный параметр "${key}" содержит слэш (/).`);
         }
