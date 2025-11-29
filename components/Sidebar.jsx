@@ -43,7 +43,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
             </div>
             
             <div className="text-center text-xs text-gray-400 mt-8">
-                v1.3
+                v2.0
             </div>
         </div>
     );

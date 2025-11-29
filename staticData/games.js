@@ -1,7 +1,11 @@
 // staticData\games.js
 
-export const VALID_GAMES = [
+export const CRASH_GAMES = [
   "aviator",
+  "balloon",
+];
+
+export const TURBO_GAMES = [
   "dice",
   "goal",
   "plinko",
@@ -10,10 +14,25 @@ export const VALID_GAMES = [
   "keno",
   "mini-roulette",
   "hotline",
-  "balloon",
+];
+
+export const SLOT_GAMES = [
+  "crystal-fall", 
+  "neo-vegas", 
+  "gates-of-egypt", 
+  "forest-of-wisps", 
+  "keplers-paradise",
+  "alien-farm", 
+  "viking-pub", 
+  "fruit-garden", 
+  "piggy-heist"
+];
+
+export const LIVE_GAMES = [
   "multikeno",
   "trader",
-  "crystal-fall",
-  "neo-vegas",
-  "gates-of-egypt",
+  "starline",
 ];
+
+"crystal-fall", "neo-vegas", "gates-of-egypt", "forest-of-wisps", "keplers-paradise",
+                    "alien-farm", "viking-pub", "fruit-garden", "piggy-heist"

@@ -2,35 +2,35 @@
 
 import { REQUIRED_PARAMS, OPTIONAL_PARAMS } from "../../staticData/queryParams.js";
 import { VALID_CURRENCY_CODES } from "../../staticData/currencies.js";
-import { VALID_GAMES } from "../../staticData/games.js";
+import { CRASH_GAMES, TURBO_GAMES, SLOT_GAMES, LIVE_GAMES } from "../../staticData/games.js";
 
-// Создаем Set'ы здесь
+// Создаем Set'ы
 const ALLOWED_QUERY_PARAMS_SET = new Set([...REQUIRED_PARAMS, ...OPTIONAL_PARAMS]);
 const VALID_CURRENCY_CODES_SET = new Set(VALID_CURRENCY_CODES.map(c => c.toUpperCase()));
+const VALID_GAMES = [...CRASH_GAMES, ...TURBO_GAMES, ...SLOT_GAMES, ...LIVE_GAMES];
 
 export const validateLaunchURLProd = (urlToValidate) => {
+    // === 0. ПРЕДВАРИТЕЛЬНАЯ ОЧИСТКА ===
+    // Удаляем случайные пробелы в начале и конце строки
+    if (!urlToValidate) return { errors: ['URL пуст'], components: null };
+    urlToValidate = urlToValidate.trim();
+
     let validationErrors = [];
     let urlObject;
     let components = { gameId: '', payload: {} }; 
     let params = {};
     
-    // Ожидаемый префикс для Production
-    const REQUIRED_PREFIX = "https://launch.spribegaming.com/";
+    // === 1. ИГНОРИРОВАНИЕ RETURN_URL ПРИ ПРОВЕРКЕ СИНТАКСИСА ===
+    const urlForSyntaxCheck = urlToValidate.replace(/return_url=[^&]*/gi, "return_url=skipped");
 
-    // 1. Жесткая проверка начала URL
-    if (!urlToValidate.startsWith(REQUIRED_PREFIX)) {
-         validationErrors.push(`Для этого типа проверки URL должен начинаться строго с "${REQUIRED_PREFIX}"`);
+    // Проверка протокола
+    if (!urlToValidate.toLowerCase().startsWith('http://') && !urlToValidate.toLowerCase().startsWith('https://')) {
+         validationErrors.push('URL должен начинаться с "http://" или "https://".');
          return { errors: validationErrors, components: null };
     }
 
-    // === ИГНОРИРОВАНИЕ RETURN_URL ПРИ ПРОВЕРКЕ СИНТАКСИСА ===
-    // Создаем копию строки, где содержимое return_url заменено на заглушку
-    const urlForSyntaxCheck = urlToValidate.replace(/return_url=[^&]*/gi, "return_url=skipped");
-
     // 2.1. ПРОВЕРКА: Двойной слэш (//) вне протокола
-    // Используем urlForSyntaxCheck
     const inputWithoutProtocol = urlForSyntaxCheck.replace(/^https?:\/\//i, '');
-    
     if (inputWithoutProtocol.includes('//')) {
         validationErrors.push('Обнаружены последовательные слэши "//" вне протокола.');
     }
@@ -44,20 +44,57 @@ export const validateLaunchURLProd = (urlToValidate) => {
         // Парсим ОРИГИНАЛЬНЫЙ URL
         urlObject = new URL(urlToValidate);
 
-        // 2.3. ПРОВЕРКА: Висячий слэш в конце пути перед параметрами
-        if (urlObject.pathname.endsWith('/') && urlObject.search) {
-            validationErrors.push('Путь URL заканчивается слэшем "/" непосредственно перед строкой запроса.');
-        }
-
+        // Собираем параметры
         urlObject.searchParams.forEach((value, key) => {
             if (key !== '') {
                 params[key] = value;
             }
         });
-        
-        // НОВАЯ ЛОГИКА: gameId из пути
-        const pathParts = urlObject.pathname.split('/');
-        const extractedGameId = pathParts[1] || '';
+
+        // === ГЛАВНОЕ ИЗМЕНЕНИЕ: ОПРЕДЕЛЕНИЕ ИГРЫ ПО ДОМЕНУ (HOST) ===
+        // Приводим к нижнему регистру и убираем 'www.' если есть
+        const host = urlObject.host.toLowerCase().replace(/^www\./, '');
+        const pathname = urlObject.pathname;
+        let extractedGameId = '';
+
+        switch (host) {
+            case 'launch.spribegaming.com':
+                // Стандартный лаунч: /aviator -> aviator
+                extractedGameId = pathname.split('/')[1] || '';
+                break;
+
+            case 'aviator-next.spribegaming.com':
+            case 'aviaport.spribegaming.com':
+                // Специфичные домены для Авиатора
+                extractedGameId = 'aviator';
+                break;
+
+            case 'turbo.spribegaming.com':
+                // Турбо игры: /dice -> dice
+                extractedGameId = pathname.split('/')[1] || '';
+                break;
+
+            case 'slots.spribegaming.com':
+                // Слоты: /crystal-fall -> crystal-fall
+                extractedGameId = pathname.split('/')[1] || '';
+                break;
+
+            case 'keno80.spribegaming.com':
+                extractedGameId = 'multikeno';
+                break;
+
+            case 'trader.spribegaming.com':
+                extractedGameId = 'trader';
+                break;
+
+            case 'starline.spribegaming.com':
+                extractedGameId = 'starline';
+                break;
+
+            default:
+                // Если домен неизвестен, считаем это ошибкой
+                validationErrors.push(`Неизвестный домен: "${host}". Ожидался launch.spribegaming.com или известные поддомены (aviator-next, turbo, slots...).`);
+        }
 
         components = {
             protocol: urlObject.protocol,
@@ -65,6 +102,12 @@ export const validateLaunchURLProd = (urlToValidate) => {
             gameId: extractedGameId,
             payload: params
         };
+
+        // 2.3. ПРОВЕРКА: Висячий слэш (только если это путь к игре, а не корень домена)
+        if (pathname !== '/' && pathname.endsWith('/') && urlObject.search) {
+            validationErrors.push('Путь URL заканчивается слэшем "/" непосредственно перед строкой запроса.');
+        }
+
     } catch (e) {
         if (validationErrors.length === 0) {
              validationErrors.push('Некорректный формат URL.');
@@ -85,7 +128,7 @@ export const validateLaunchURLProd = (urlToValidate) => {
 
     // 4. ПРОВЕРКА: Название игры (Game ID)
     if (!components.gameId) {
-        validationErrors.push('Название игры (Game ID) отсутствует в пути URL (сразу после домена).'); 
+        validationErrors.push('Не удалось определить Game ID из URL.'); 
     } else {
         const gameId = components.gameId.toLowerCase();
         if (!VALID_GAMES.includes(gameId)) {
@@ -103,7 +146,7 @@ export const validateLaunchURLProd = (urlToValidate) => {
     // 6. ПРОВЕРКА: Слэши (/) в значениях обязательных параметров
     REQUIRED_PARAMS.forEach(key => {
         const value = components.payload[key];
-        // Пропускаем проверку для return_url, если он вдруг попал в список обязательных
+        // Пропускаем return_url
         if (key === 'return_url') return;
 
         if (value && value.includes('/')) {
@@ -120,6 +163,5 @@ export const validateLaunchURLProd = (urlToValidate) => {
         }
     }
     
-    // Возвращаем финальный результат
     return { errors: validationErrors, components: components };
 };

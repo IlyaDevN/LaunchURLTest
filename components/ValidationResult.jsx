@@ -117,7 +117,7 @@ const ValidationResult = ({ data }) => {
                         onClick={() => setShowJson(!showJson)}
                         className="text-xs text-gray-500 hover:text-[#2e2691] font-medium flex items-center gap-1 focus:outline-none"
                     >
-                        {showJson ? '🔼 Скрыть сырой JSON' : '🔽 Показать сырой JSON для разработчиков'}
+                        {showJson ? '🔼 Скрыть сырой JSON' : '🔽 Показать сырой JSON'}
                     </button>
                     
                     {showJson && (
