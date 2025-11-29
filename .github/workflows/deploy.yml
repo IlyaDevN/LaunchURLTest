@@ -4,7 +4,7 @@ name: Deploy Next.js Static Site to GitHub Pages
 # Запускать рабочий процесс при пуше в ветку 'main'
 on:
   push:
-    branches: ["main"]
+    branches: ["master"]
   # Позволяет запускать рабочий процесс вручную
   workflow_dispatch:
 
