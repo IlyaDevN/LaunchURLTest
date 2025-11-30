@@ -7,11 +7,8 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [fetchedUrl, setFetchedUrl] = useState(null);
-    
-    // Состояние для скрытия/показа сырого JSON
     const [showJson, setShowJson] = useState(false);
 
-    // Сброс при смене параметров
     useEffect(() => {
         setConfigData(null);
         setError(null);
@@ -19,27 +16,21 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         setShowJson(false); 
     }, [gameId, operator, validationType, analyzedHost]);
 
-    // === ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ОПРЕДЕЛЕНИЕ СРЕДЫ (PROD/STAGE) ===
+    // === ЛОГИКА ОПРЕДЕЛЕНИЯ СРЕДЫ ===
     const isStageEnvironment = () => {
-        // 1. Если это явная проверка Stage Launch URL
         if (validationType === 'stageLaunchURLValidation') return true;
-        
-        // 2. Если это Round Details, смотрим на домен (analyzedHost)
         if (validationType === 'roundDetailsValidation' && analyzedHost) {
-            // Если в домене есть 'staging' или 'spribe.dev' - считаем это стейджем
             if (analyzedHost.includes('staging') || analyzedHost.includes('spribe.dev')) {
                 return true;
             }
         }
-        
-        // В остальных случаях - Prod
         return false;
     };
 
     const isStage = isStageEnvironment();
 
     // === ЛОГИКА ОПРЕДЕЛЕНИЯ РЕГИОНА ===
-    const getAviatorRegion = (host) => {
+    const getRegionInfo = (host) => {
         if (!host || host === "-") return { code: "UNKNOWN", color: "bg-gray-100 text-gray-600" };
 
         if (host.includes("eu-west-1")) return { code: "STAGE EU", color: "bg-pink-100 text-pink-800" };
@@ -48,26 +39,38 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         if (host.includes("apac")) return { code: "APAC", color: "bg-red-100 text-red-800" };
         if (host.includes("sa-east-1")) return { code: "SA", color: "bg-green-100 text-green-800" };
         if (host.includes("app-hr1")) return { code: "HR", color: "bg-purple-100 text-purple-800" };
+        
+        if (host.includes("staging")) return { code: "STAGE", color: "bg-yellow-100 text-yellow-800" };
 
         return { code: "CUSTOM / UNKNOWN", color: "bg-gray-100 text-gray-800" };
     };
 
-    // === БЕЗОПАСНОЕ ИЗВЛЕЧЕНИЕ ХОСТА ===
-    const getServerHost = (data) => {
+    // === БЕЗОПАСНОЕ ИЗВЛЕЧЕНИЕ ХОСТА (ДЛЯ ССЫЛОК) ===
+    const getGeneralHostForLinks = (data) => {
         if (!data) return null;
         
-        let serverInfo = {};
-        if (data.servers && Array.isArray(data.servers) && data.servers.length > 0) {
-            serverInfo = data.servers[0];
-        } else if (data.ws) {
-            serverInfo = data.ws;
+        // 1. Проверяем структуру Turbo/Slots (где есть объект games)
+        if (data.games) {
+            if (data.games[gameId] && data.games[gameId].host) {
+                return data.games[gameId].host;
+            }
+            // Fallback: берем первую попавшуюся игру
+            const firstGameKey = Object.keys(data.games)[0];
+            if (firstGameKey && data.games[firstGameKey].host) {
+                return data.games[firstGameKey].host;
+            }
         }
-        return serverInfo.host || null;
+
+        // 2. Проверяем структуру Aviator (servers/ws)
+        if (data.servers && Array.isArray(data.servers) && data.servers.length > 0) {
+            return data.servers[0].host;
+        } else if (data.ws) {
+            return data.ws.host;
+        }
+        return null;
     };
 
-    // === ГЕНЕРАЦИЯ ССЫЛОК УПРАВЛЕНИЯ ===
     const getManagementLinks = () => {
-        // 1. ССЫЛКИ ДЛЯ STAGE
         if (isStage) {
             return {
                 clientArea: "https://clientarea.staging.spribe.dev",
@@ -75,27 +78,16 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
             };
         }
 
-        // 2. ССЫЛКИ ДЛЯ PROD
-        const host = getServerHost(configData);
-        const regionInfo = getAviatorRegion(host);
+        const host = getGeneralHostForLinks(configData);
+        const regionInfo = getRegionInfo(host);
         
-        // Базовая ссылка (EU или дефолт)
         let clientAreaUrl = "https://clientarea.spribegaming.com"; 
 
-        // Переопределение в зависимости от региона
         switch (regionInfo.code) {
-            case 'AF':
-                clientAreaUrl = "https://clientarea-af.spribegaming.com";
-                break;
-            case 'APAC':
-                clientAreaUrl = "https://clientarea-ap.spribegaming.com";
-                break;
-            case 'SA':
-                clientAreaUrl = "https://clientarea-sa.spribegaming.com";
-                break;
-            case 'HR':
-                clientAreaUrl = "https://clientarea-hr.spribegaming.com";
-                break;
+            case 'AF': clientAreaUrl = "https://clientarea-af.spribegaming.com"; break;
+            case 'APAC': clientAreaUrl = "https://clientarea-ap.spribegaming.com"; break;
+            case 'SA': clientAreaUrl = "https://clientarea-sa.spribegaming.com"; break;
+            case 'HR': clientAreaUrl = "https://clientarea-hr.spribegaming.com"; break;
         }
 
         return {
@@ -111,7 +103,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         setError(null);
         setConfigData(null);
 
-        // 1. ОПРЕДЕЛЯЕМ ПУТЬ К ИГРЕ
         let urlGamePath;
         if (TURBO_GAMES.includes(gameId)) {
             urlGamePath = 'turbo';
@@ -121,9 +112,8 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
             urlGamePath = gameId;
         }
 
-        // 2. ОПРЕДЕЛЯЕМ ДОМЕН
         let baseUrl;
-        const _isStage = isStageEnvironment(); // Вычисляем внутри колбэка для актуальности
+        const _isStage = isStageEnvironment();
 
         if (_isStage) {
             baseUrl = "https://app-config.spribe.dev";
@@ -166,51 +156,89 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         fetchConfig();
     }, [fetchConfig]);
 
-    // === РЕНДЕРИНГ ДАННЫХ ДЛЯ AVIATOR ===
-    const renderAviatorData = () => {
-        const host = getServerHost(configData) || "-";
-        
-        // Получаем зону
+    // === УНИВЕРСАЛЬНЫЙ РЕНДЕР ДАННЫХ ИГРЫ ===
+    const renderGameData = () => {
+        let host = "-";
         let zone = "-";
-        if (configData?.servers && Array.isArray(configData.servers) && configData.servers.length > 0) {
+        
+        let isGameFound = true; // Игра есть в конфиге
+        let isFallbackData = false; // Данные взяты из "соседней" игры
+
+        // 1. Проверяем структуру Turbo/Slots (объект games)
+        if (configData?.games) {
+            // Ищем конфиг конкретно для текущей игры
+            if (configData.games[gameId]) {
+                const gameConfig = configData.games[gameId];
+                host = gameConfig.host || "-";
+                zone = gameConfig.zone || "-";
+            } else {
+                isGameFound = false;
+                // === ИЗМЕНЕНИЕ: Пытаемся найти данные из ЛЮБОЙ другой игры ===
+                const availableGames = Object.keys(configData.games);
+                if (availableGames.length > 0) {
+                    const firstGameKey = availableGames[0];
+                    const fallbackConfig = configData.games[firstGameKey];
+                    host = fallbackConfig.host || "-";
+                    zone = fallbackConfig.zone || "-";
+                    isFallbackData = true; // Помечаем, что данные не родные
+                }
+            }
+        } 
+        // 2. Проверяем структуру Aviator (servers/ws)
+        else if (configData?.servers && Array.isArray(configData.servers) && configData.servers.length > 0) {
+            host = configData.servers[0].host || "-";
             zone = configData.servers[0].zone || "-";
         } else if (configData?.ws) {
+            host = configData.ws.host || "-";
             zone = configData.ws.zone || "-";
+        } else {
+            host = "-";
         }
 
-        const regionInfo = getAviatorRegion(host);
+        const regionInfo = getRegionInfo(host);
 
-        // Стили
+        // Рендер карточек
         const cardClass = "bg-gray-50 p-4 rounded-lg border border-gray-100 flex flex-col items-center justify-center text-center h-full";
         const labelClass = "text-gray-400 text-xs font-bold uppercase tracking-wider mb-2";
         const valueClass = "text-sm font-mono font-bold text-gray-700 break-all";
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 items-stretch">
+            <div className="mb-6">
+                {/* Предупреждение, если игра не найдена, но мы нашли данные другой игры */}
+                {!isGameFound && isFallbackData && (
+                    <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg mb-4 text-sm">
+                        ⚠️ Настройки для <strong>{gameId}</strong> отсутствуют. 
+                        <br/>
+                        Ниже показаны параметры региона на основе других игр из конфигурации оператора.
+                    </div>
+                )}
                 
-                {/* 1. REGION */}
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col items-center justify-center text-center h-full">
-                    <span className={labelClass}>Detected Region</span>
-                    <span className={`px-4 py-1 rounded-full font-extrabold text-xl ${regionInfo.color}`}>
-                        {regionInfo.code}
-                    </span>
-                </div>
+                {/* Если вообще ничего не нашли */}
+                {!isGameFound && !isFallbackData && (
+                    <div className="p-4 bg-red-50 text-red-800 border border-red-200 rounded-lg mb-4 text-sm">
+                        ❌ Игра <strong>{gameId}</strong> не найдена, и нет данных других игр для определения региона.
+                    </div>
+                )}
 
-                {/* 2. HOST */}
-                <div className={cardClass}>
-                    <span className={labelClass}>Server Host</span>
-                    <span className={valueClass}>
-                        {host}
-                    </span>
-                </div>
-
-                {/* 3. ZONE */}
-                <div className={cardClass}>
-                    <span className={labelClass}>Zone</span>
-                    <span className={valueClass}>
-                        {zone}
-                    </span>
-                </div>
+                {/* Карточки отображаем, если есть хоть какие-то данные (родные или fallback) */}
+                {(isGameFound || isFallbackData) && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col items-center justify-center text-center h-full">
+                            <span className={labelClass}>Detected Region</span>
+                            <span className={`px-4 py-1 rounded-full font-extrabold text-xl ${regionInfo.color}`}>
+                                {regionInfo.code}
+                            </span>
+                        </div>
+                        <div className={cardClass}>
+                            <span className={labelClass}>Server Host {isFallbackData ? '(Fallback)' : ''}</span>
+                            <span className={valueClass}>{host}</span>
+                        </div>
+                        <div className={cardClass}>
+                            <span className={labelClass}>Zone {isFallbackData ? '(Fallback)' : ''}</span>
+                            <span className={valueClass}>{zone}</span>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -227,7 +255,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
             </div>
 
             <div className="p-6">
-                {/* Состояние загрузки */}
+                {/* Загрузка */}
                 {loading && (
                     <div className="flex items-center text-indigo-600 py-4 justify-center">
                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -252,7 +280,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                     </div>
                 )}
 
-                {/* Данные успешно загружены */}
+                {/* Успех */}
                 {configData && !loading && (
                     <div className="animate-fade-in">
                         <p className="text-xs text-gray-500 mb-4 flex justify-between">
@@ -260,16 +288,8 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                             <span className="font-mono text-[10px] text-gray-400">{fetchedUrl}</span>
                         </p>
                         
-                        {/* === БЛОК ВИЗУАЛИЗАЦИИ === */}
-                        {gameId === 'aviator' && renderAviatorData()}
+                        {renderGameData()}
 
-                        {gameId !== 'aviator' && (
-                            <div className="p-4 bg-blue-50 text-blue-800 rounded-lg mb-4 text-sm">
-                                Для игры <strong>{gameId}</strong> визуализация параметров еще не настроена.
-                            </div>
-                        )}
-
-                        {/* === НОВЫЙ БЛОК: ССЫЛКИ УПРАВЛЕНИЯ === */}
                         {(() => {
                             const links = getManagementLinks();
                             return (
@@ -296,7 +316,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                             );
                         })()}
 
-                        {/* Кнопка спойлера для JSON */}
                         <div className="border-t border-gray-100 pt-4">
                             <button
                                 onClick={() => setShowJson(!showJson)}
