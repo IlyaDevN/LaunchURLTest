@@ -33,6 +33,3 @@ export const LIVE_GAMES = [
   "trader",
   "starline",
 ];
-
-"crystal-fall", "neo-vegas", "gates-of-egypt", "forest-of-wisps", "keplers-paradise",
-                    "alien-farm", "viking-pub", "fruit-garden", "piggy-heist"

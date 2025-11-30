@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { TURBO_GAMES, SLOT_GAMES } from "../staticData/games.js";
 
-const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
+const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }) => {
     const [configData, setConfigData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -17,12 +17,32 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
         setError(null);
         setFetchedUrl(null);
         setShowJson(false); 
-    }, [gameId, operator, validationType]);
+    }, [gameId, operator, validationType, analyzedHost]);
+
+    // === ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ОПРЕДЕЛЕНИЕ СРЕДЫ (PROD/STAGE) ===
+    const isStageEnvironment = () => {
+        // 1. Если это явная проверка Stage Launch URL
+        if (validationType === 'stageLaunchURLValidation') return true;
+        
+        // 2. Если это Round Details, смотрим на домен (analyzedHost)
+        if (validationType === 'roundDetailsValidation' && analyzedHost) {
+            // Если в домене есть 'staging' или 'spribe.dev' - считаем это стейджем
+            if (analyzedHost.includes('staging') || analyzedHost.includes('spribe.dev')) {
+                return true;
+            }
+        }
+        
+        // В остальных случаях - Prod
+        return false;
+    };
+
+    const isStage = isStageEnvironment();
 
     // === ЛОГИКА ОПРЕДЕЛЕНИЯ РЕГИОНА ===
     const getAviatorRegion = (host) => {
         if (!host || host === "-") return { code: "UNKNOWN", color: "bg-gray-100 text-gray-600" };
 
+        if (host.includes("eu-west-1")) return { code: "STAGE EU", color: "bg-pink-100 text-pink-800" };
         if (host.includes("eu-central-1")) return { code: "EU", color: "bg-blue-100 text-blue-800" };
         if (host.includes("af-south-1")) return { code: "AF", color: "bg-yellow-100 text-yellow-800" };
         if (host.includes("apac")) return { code: "APAC", color: "bg-red-100 text-red-800" };
@@ -47,8 +67,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
 
     // === ГЕНЕРАЦИЯ ССЫЛОК УПРАВЛЕНИЯ ===
     const getManagementLinks = () => {
-        const isStage = validationType === 'stageLaunchURLValidation';
-        
         // 1. ССЫЛКИ ДЛЯ STAGE
         if (isStage) {
             return {
@@ -62,7 +80,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
         const regionInfo = getAviatorRegion(host);
         
         // Базовая ссылка (EU или дефолт)
-        let clientAreaUrl = "https://clientarea.spribegaming.com"; // Default for EU
+        let clientAreaUrl = "https://clientarea.spribegaming.com"; 
 
         // Переопределение в зависимости от региона
         switch (regionInfo.code) {
@@ -78,7 +96,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
             case 'HR':
                 clientAreaUrl = "https://clientarea-hr.spribegaming.com";
                 break;
-            // EU и остальные остаются на дефолтном
         }
 
         return {
@@ -106,16 +123,16 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
 
         // 2. ОПРЕДЕЛЯЕМ ДОМЕН
         let baseUrl;
-        let url;
-        const timestamp = Date.now(); 
+        const _isStage = isStageEnvironment(); // Вычисляем внутри колбэка для актуальности
 
-        if (validationType === 'stageLaunchURLValidation') {
+        if (_isStage) {
             baseUrl = "https://app-config.spribe.dev";
         } else {
             baseUrl = "https://app-config.spribegaming.com";
         }
 
-        url = `${baseUrl}/${urlGamePath}/${operator}.json?t=${timestamp}`;
+        const timestamp = Date.now(); 
+        const url = `${baseUrl}/${urlGamePath}/${operator}.json?t=${timestamp}`;
         setFetchedUrl(url);
 
         try {
@@ -143,7 +160,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
         } finally {
             setLoading(false);
         }
-    }, [gameId, operator, validationType]);
+    }, [gameId, operator, validationType, analyzedHost]);
 
     useEffect(() => {
         fetchConfig();
@@ -151,10 +168,9 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
 
     // === РЕНДЕРИНГ ДАННЫХ ДЛЯ AVIATOR ===
     const renderAviatorData = () => {
-        // Используем общую функцию получения хоста
         const host = getServerHost(configData) || "-";
         
-        // Получаем зону (немного сложнее вынести в общую, оставим тут)
+        // Получаем зону
         let zone = "-";
         if (configData?.servers && Array.isArray(configData.servers) && configData.servers.length > 0) {
             zone = configData.servers[0].zone || "-";
@@ -205,8 +221,8 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     ⚙️ Конфигурация оператора
                 </h3>
-                <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${validationType === 'stageLaunchURLValidation' ? 'bg-yellow-500 text-black' : 'bg-green-600 text-white'}`}>
-                    {validationType === 'stageLaunchURLValidation' ? 'Stage (Dev)' : 'Production'}
+                <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${isStage ? 'bg-yellow-500 text-black' : 'bg-green-600 text-white'}`}>
+                    {isStage ? 'Stage (Dev)' : 'Production'}
                 </span>
             </div>
 
@@ -258,7 +274,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
                             const links = getManagementLinks();
                             return (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                                    {/* Ссылка на Client Area */}
                                     <a 
                                         href={links.clientArea}
                                         target="_blank"
@@ -268,8 +283,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType }) => {
                                         <span>👤 Client Area</span>
                                         <svg className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                                     </a>
-
-                                    {/* Ссылка на Admin Area */}
                                     <a 
                                         href={links.adminArea}
                                         target="_blank"

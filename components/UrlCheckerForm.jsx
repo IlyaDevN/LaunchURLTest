@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { validateLaunchURLProd } from "../utils/validators/validateLaunchURLProd.js";
 import { validateLaunchURLStage } from "../utils/validators/validateLaunchURLStage.js";
-// 1. ИМПОРТ НОВОГО ВАЛИДАТОРА
 import { validateRoundDetailsUrl } from "../utils/validators/validateRoundDetailsUrl.js";
 
 import ValidationResult from "./ValidationResult.jsx";
@@ -15,7 +14,6 @@ const UrlCheckerForm = () => {
     const [parsedParams, setParsedParams] = useState(null);
     const [error, setError] = useState(null);
 
-    // 3. ГЛАВНЫЙ ОБРАБОТЧИК (МАРШРУТИЗАТОР)
     const handleCheckUrl = () => {
         setError(null);
         setParsedParams(null);
@@ -27,21 +25,17 @@ const UrlCheckerForm = () => {
         
         let result;
 
-        // Маршрутизация на основе validationType
         if (validationType === 'prodLaunchURLValidation') {
             result = validateLaunchURLProd(urlInput);
         } else if (validationType === 'stageLaunchURLValidation') {
             result = validateLaunchURLStage(urlInput);
-        } 
-        // 2. ДОБАВЛЕНИЕ НОВОГО КЕЙСА
-        else if (validationType === 'roundDetailsValidation') {
+        } else if (validationType === 'roundDetailsValidation') {
             result = validateRoundDetailsUrl(urlInput);
         } else {
             setError('Пожалуйста, выберите корректный тип валидации.');
             return;
         }
 
-        // Обработка результата
         if (result.components) {
             setParsedParams(result.components);
         }
@@ -57,7 +51,6 @@ const UrlCheckerForm = () => {
                 Launch URL validator
             </h1>
             <div className="flex flex-col space-y-4 p-6 bg-white rounded-xl shadow-2xl border border-gray-200">
-                {/* Выпадающий список */}
                 <div>
                     <label htmlFor="validationType" className="block text-sm font-medium text-gray-700 mb-1">
                         Тип URL для проверки:
@@ -78,7 +71,6 @@ const UrlCheckerForm = () => {
                         <option value="" disabled>-- Выберите тип валидации --</option>
                         <option value="prodLaunchURLValidation">Launch URL (Production)</option>
                         <option value="stageLaunchURLValidation">Launch URL (Stage)</option>
-                        {/* 3. НОВАЯ ОПЦИЯ В СПИСКЕ */}
                         <option value="roundDetailsValidation">Round Details URL (History)</option>
                     </select>
                 </div>
@@ -87,7 +79,6 @@ const UrlCheckerForm = () => {
                     <div className="flex flex-col space-y-4 animate-fade-in-up">
                         <textarea
                             rows="4"
-                            // Меняем плейсхолдер в зависимости от типа
                             placeholder={validationType === 'roundDetailsValidation' 
                                 ? "Вставьте ссылку на историю раунда (например, https://games-info.apac.spribegaming.com/?round_id=...)"
                                 : "Вставьте launch URL сюда (например, https://launch.spribegaming.com/aviator?user=...)"
@@ -112,7 +103,6 @@ const UrlCheckerForm = () => {
                 )}
             </div>
 
-            {/* Ошибка */}
             {error && (
                 <div className="mt-6 p-4 bg-red-100 text-red-800 border border-red-500 rounded-xl shadow-md">
                     <div className="flex items-start">
@@ -127,17 +117,12 @@ const UrlCheckerForm = () => {
 
             {parsedParams && !error && (
                 <>
-                    {/* Результат валидации */}
                     <ValidationResult data={parsedParams} />
-                    
-                    {/* Загрузчик конфига оператора.
-                       Он сработает и для Round Details, так как валидатор
-                       возвращает gameId и operator в той же структуре!
-                    */}
                     <OperatorConfigViewer 
                         gameId={parsedParams.gameId} 
                         operator={parsedParams.payload?.operator} 
-                        validationType={validationType} 
+                        validationType={validationType}
+                        analyzedHost={parsedParams.host} 
                     />
                 </>
             )}
