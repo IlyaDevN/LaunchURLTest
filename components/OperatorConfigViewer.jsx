@@ -307,10 +307,13 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                                         href={links.adminArea}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-700 font-bold hover:bg-gray-200 hover:shadow-md transition-all group"
+                                        // БЫЛО: bg-[#990000] text-white ...
+                                        // СТАЛО: bg-red-50 (светлый), text-[#990000] (бордовый текст), border-red-200
+                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-[#990000] font-bold hover:bg-red-100 hover:shadow-md transition-all group"
                                     >
                                         <span>🛠️ Admin Area</span>
-                                        <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                        {/* Иконка: светло-красная, при наведении темнеет до бордового */}
+                                        <svg className="w-4 h-4 text-red-400 group-hover:text-[#990000]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                                     </a>
                                 </div>
                             );
