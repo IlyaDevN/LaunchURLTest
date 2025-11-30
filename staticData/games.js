@@ -2,7 +2,9 @@
 
 export const CRASH_GAMES = [
   "aviator",
-  "balloon",
+  "starline",
+  "trader",
+  "pilot-chicken"
 ];
 
 export const TURBO_GAMES = [
@@ -14,6 +16,7 @@ export const TURBO_GAMES = [
   "keno",
   "mini-roulette",
   "hotline",
+  "balloon"
 ];
 
 export const SLOT_GAMES = [
@@ -28,8 +31,6 @@ export const SLOT_GAMES = [
   "piggy-heist"
 ];
 
-export const LIVE_GAMES = [
-  "multikeno",
-  "trader",
-  "starline",
+export const MULTIPLAYER_GAMES = [
+  "multikeno"
 ];

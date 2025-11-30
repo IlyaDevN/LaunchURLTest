@@ -13,9 +13,12 @@ const UrlCheckerForm = () => {
     const [validationType, setValidationType] = useState(''); 
     const [parsedParams, setParsedParams] = useState(null);
     const [error, setError] = useState(null);
+    // Добавляем стейт для предупреждений
+    const [warnings, setWarnings] = useState([]);
 
     const handleCheckUrl = () => {
         setError(null);
+        setWarnings([]); // Сбрасываем предупреждения
         setParsedParams(null);
 
         if (!urlInput.trim()) {
@@ -40,8 +43,14 @@ const UrlCheckerForm = () => {
             setParsedParams(result.components);
         }
 
-        if (result.errors.length > 0) {
+        // Обработка ошибок
+        if (result.errors && result.errors.length > 0) {
             setError(result.errors.join(' | '));
+        }
+
+        // Обработка предупреждений (если они есть в ответе валидатора)
+        if (result.warnings && result.warnings.length > 0) {
+            setWarnings(result.warnings);
         }
     };
 
@@ -62,6 +71,7 @@ const UrlCheckerForm = () => {
                         onChange={(e) => {
                             setValidationType(e.target.value);
                             setError(null);
+                            setWarnings([]);
                             setParsedParams(null);
                         }}
                         className="w-full px-4 py-3 text-gray-900 bg-gray-50 border border-gray-300 rounded-lg 
@@ -85,8 +95,8 @@ const UrlCheckerForm = () => {
                             }
                             value={urlInput}
                             onChange={(e) => setUrlInput(e.target.value)}
-                            className={`w-full px-4 py-3 text-gray-900 bg-gray-50 border ${error ? 'border-red-500' : 'border-gray-300'} rounded-lg 
-                                    focus:outline-none focus:ring-2 ${error ? 'focus:ring-red-500' : 'focus:ring-[#2e2691]'} focus:border-transparent 
+                            className={`w-full px-4 py-3 text-gray-900 bg-gray-50 border ${error ? 'border-red-500' : (warnings.length > 0 ? 'border-yellow-500' : 'border-gray-300')} rounded-lg 
+                                    focus:outline-none focus:ring-2 ${error ? 'focus:ring-red-500' : (warnings.length > 0 ? 'focus:ring-yellow-500' : 'focus:ring-[#2e2691]')} focus:border-transparent 
                                     transition duration-150 ease-in-out text-sm md:text-base resize-none min-h-[6rem] shadow-inner`} 
                         />
                         
@@ -103,6 +113,7 @@ const UrlCheckerForm = () => {
                 )}
             </div>
 
+            {/* Блок ОШИБОК (Красный) */}
             {error && (
                 <div className="mt-6 p-4 bg-red-100 text-red-800 border border-red-500 rounded-xl shadow-md">
                     <div className="flex items-start">
@@ -115,9 +126,26 @@ const UrlCheckerForm = () => {
                 </div>
             )}
 
+            {/* Блок ПРЕДУПРЕЖДЕНИЙ (Желтый) - показываем даже если есть parsedParams */}
+            {warnings.length > 0 && !error && (
+                <div className="mt-6 p-4 bg-yellow-50 text-yellow-800 border border-yellow-400 rounded-xl shadow-md">
+                    <div className="flex items-start">
+                        <span className="text-2xl mr-3">⚠️</span>
+                        <div>
+                            <h4 className="font-bold text-lg mb-1">Предупреждение (URL рабочий, но нестандартный):</h4>
+                            {warnings.map((warn, index) => (
+                                <p key={index} className="whitespace-pre-wrap text-sm mb-1">{warn}</p>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Результаты (показываем, если нет критических ошибок, даже при варнингах) */}
             {parsedParams && !error && (
                 <>
                     <ValidationResult data={parsedParams} />
+                    
                     <OperatorConfigViewer 
                         gameId={parsedParams.gameId} 
                         operator={parsedParams.payload?.operator} 

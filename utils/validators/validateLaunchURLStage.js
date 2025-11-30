@@ -2,12 +2,12 @@
 
 import { REQUIRED_PARAMS, OPTIONAL_PARAMS } from "../../staticData/queryParams.js";
 import { VALID_CURRENCY_CODES } from "../../staticData/currencies.js";
-import { CRASH_GAMES, TURBO_GAMES, SLOT_GAMES, LIVE_GAMES } from "../../staticData/games.js";
+import { CRASH_GAMES, TURBO_GAMES, SLOT_GAMES, MULTIPLAYER_GAMES } from "../../staticData/games.js";
 
 // Создаем Set'ы
 const ALLOWED_QUERY_PARAMS_SET = new Set([...REQUIRED_PARAMS, ...OPTIONAL_PARAMS]);
 const VALID_CURRENCY_CODES_SET = new Set(VALID_CURRENCY_CODES.map(c => c.toUpperCase()));
-const VALID_GAMES = [...CRASH_GAMES, ...TURBO_GAMES, ...SLOT_GAMES, ...LIVE_GAMES];
+const VALID_GAMES = [...CRASH_GAMES, ...TURBO_GAMES, ...SLOT_GAMES, ...MULTIPLAYER_GAMES];
 
 export const validateLaunchURLStage = (urlToValidate) => {
     // === 0. ПРЕДВАРИТЕЛЬНАЯ ОЧИСТКА ===

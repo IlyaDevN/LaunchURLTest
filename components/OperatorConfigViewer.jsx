@@ -207,7 +207,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                 {/* Предупреждение, если игра не найдена, но мы нашли данные другой игры */}
                 {!isGameFound && isFallbackData && (
                     <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg mb-4 text-sm">
-                        ⚠️ Настройки для <strong>{gameId}</strong> отсутствуют. 
+                        ⚠️ Настройки для <strong>{gameId}</strong> отсутствуют! Возможно игра  не включена для данного оператора.
                         <br/>
                         Ниже показаны параметры региона на основе других игр из конфигурации оператора.
                     </div>
