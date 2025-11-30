@@ -23,16 +23,34 @@ const UrlCheckerForm = () => {
         const value = e.target.value;
         setUrlInput(value);
 
-        // Сбрасываем старые результаты при изменении ввода
         if (parsedParams || error) {
             setParsedParams(null);
             setError(null);
             setWarnings([]);
         }
 
-        // Пытаемся определить тип на лету
         const detected = detectUrlType(value);
         setValidationType(detected || '');
+    };
+
+    // === НОВЫЙ ОБРАБОТЧИК: ВСТАВИТЬ ИЗ БУФЕРА ===
+    const handlePaste = async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                setUrlInput(text);
+                // Сбрасываем старые результаты
+                setParsedParams(null);
+                setError(null);
+                setWarnings([]);
+                
+                // Сразу определяем тип вставленной ссылки
+                const detected = detectUrlType(text);
+                setValidationType(detected || '');
+            }
+        } catch (err) {
+            console.error('Не удалось прочитать буфер обмена:', err);
+        }
     };
 
     // === ГЛАВНЫЙ ОБРАБОТЧИК ===
@@ -46,8 +64,6 @@ const UrlCheckerForm = () => {
             return;
         }
 
-        // Если тип не определился автоматически при вводе (например, ссылка кривая), пробуем еще раз
-        // или выдаем ошибку, если urlTypeDetector вернул null.
         let currentType = validationType;
         if (!currentType) {
             currentType = detectUrlType(urlInput);
@@ -105,7 +121,6 @@ const UrlCheckerForm = () => {
         }
     };
 
-    // Вспомогательная функция для получения красивого лейбла
     const getTypeLabel = () => {
         switch (validationType) {
             case 'prodLaunchURLValidation':
@@ -130,12 +145,10 @@ const UrlCheckerForm = () => {
             <div className="flex flex-col space-y-4 p-6 bg-white rounded-xl shadow-2xl border border-gray-200">
                 <div className="flex flex-col space-y-4">
                     
-                    {/* Поле ввода */}
                     <textarea
                         rows="4"
                         placeholder="Вставьте ссылку сюда (Launch URL или Round Details)..."
                         value={urlInput}
-                        // Используем новый обработчик
                         onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
                         className={`w-full px-4 py-3 text-gray-900 bg-gray-50 border ${error ? 'border-red-500' : (warnings.length > 0 ? 'border-yellow-500' : 'border-gray-300')} rounded-lg 
@@ -143,65 +156,75 @@ const UrlCheckerForm = () => {
                                 transition duration-150 ease-in-out text-sm md:text-base resize-none min-h-[6rem] shadow-inner`} 
                     />
                     
-                    {/* === ПАНЕЛЬ УПРАВЛЕНИЯ (Бейдж слева + Кнопки справа) === */}
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2">
                         
-                        {/* ЛЕВЫЙ УГОЛ: Бейдж типа ссылки (появляется автоматически) */}
                         <div className="w-full sm:w-auto h-10 flex items-center">
                             {typeLabel ? (
                                 <span className={`px-4 py-2 rounded-lg text-sm font-bold border ${typeLabel.color} animate-fade-in w-full sm:w-auto text-center shadow-sm`}>
                                     {typeLabel.text}
                                 </span>
                             ) : (
-                                // Пустой блок, чтобы кнопки справа не прыгали, или текст-подсказка
                                 urlInput && <span className="text-gray-400 text-sm italic animate-pulse">Определение типа...</span>
                             )}
                         </div>
 
-                        {/* ПРАВЫЙ УГОЛ: Кнопки */}
                         <div className="flex w-full sm:w-auto gap-2 justify-end">
+                            {/* Очистить */}
                             <button
-                            type="button"
-                            onClick={handleClear}
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-red-600 hover:border-red-200 transition-all focus:outline-none"
-                            title="Очистить"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={handleCopy}
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-[#2e2691] hover:border-[#2e2691] transition-all focus:outline-none"
-                            title="Копировать"
-                        >
-                            {isCopied ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                            ) : (
-                                // Правильная иконка (два квадрата)
+                                type="button"
+                                onClick={handleClear}
+                                className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-red-600 hover:border-red-200 transition-all focus:outline-none"
+                                title="Очистить"
+                            >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
-                            )}
-                        </button>
+                            </button>
 
-                        <button
-                            type="button" 
-                            onClick={handleCheckUrl} 
-                            className="flex items-center justify-center gap-2 px-6 py-3 text-white font-semibold bg-[#2e2691] rounded-lg shadow-md 
-                                    hover:bg-blue-700 hover:shadow-lg focus:outline-none 
-                                    transition duration-150 transform hover:scale-[1.01] active:scale-95"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                            </svg>
-                            <span className="hidden sm:inline">Проверить URL</span>
-                            <span className="sm:hidden">Check</span>
-                        </button>
+                            {/* === НОВАЯ КНОПКА: ВСТАВИТЬ === */}
+                            <button
+                                type="button"
+                                onClick={handlePaste}
+                                className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all focus:outline-none"
+                                title="Вставить из буфера"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                            </button>
+
+                            {/* Копировать */}
+                            <button
+                                type="button"
+                                onClick={handleCopy}
+                                className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-[#2e2691] hover:border-[#2e2691] transition-all focus:outline-none"
+                                title="Копировать"
+                            >
+                                {isCopied ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                )}
+                            </button>
+
+                            {/* Проверить */}
+                            <button
+                                type="button" 
+                                onClick={handleCheckUrl} 
+                                className="flex items-center justify-center gap-2 px-6 py-3 text-white font-semibold bg-[#2e2691] rounded-lg shadow-md 
+                                        hover:bg-blue-700 hover:shadow-lg focus:outline-none 
+                                        transition duration-150 transform hover:scale-[1.01] active:scale-95"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                </svg>
+                                <span className="hidden sm:inline">Проверить URL</span>
+                                <span className="sm:hidden">Check</span>
+                            </button>
                         </div>
                     </div>
                 </div>
