@@ -163,7 +163,6 @@ const UrlCheckerForm = () => {
                             <button
                             type="button"
                             onClick={handleClear}
-                            // Убраны: focus:ring-2 focus:ring-gray-200
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-red-600 hover:border-red-200 transition-all focus:outline-none"
                             title="Очистить"
                         >
@@ -175,7 +174,6 @@ const UrlCheckerForm = () => {
                         <button
                             type="button"
                             onClick={handleCopy}
-                            // Убраны: focus:ring-2 focus:ring-gray-200
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-[#2e2691] hover:border-[#2e2691] transition-all focus:outline-none"
                             title="Копировать"
                         >
@@ -184,8 +182,9 @@ const UrlCheckerForm = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                 </svg>
                             ) : (
+                                // Правильная иконка (два квадрата)
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
                             )}
                         </button>
@@ -193,7 +192,6 @@ const UrlCheckerForm = () => {
                         <button
                             type="button" 
                             onClick={handleCheckUrl} 
-                            // Убраны: focus:ring-2 focus:ring-[#2e2691] focus:ring-offset-2
                             className="flex items-center justify-center gap-2 px-6 py-3 text-white font-semibold bg-[#2e2691] rounded-lg shadow-md 
                                     hover:bg-blue-700 hover:shadow-lg focus:outline-none 
                                     transition duration-150 transform hover:scale-[1.01] active:scale-95"
