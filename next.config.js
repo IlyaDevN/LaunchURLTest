@@ -13,6 +13,12 @@ const nextConfig = {
   // Указывает базовый путь для всех ресурсов (CSS, JS).
   // Будет: https://ilyadevn.github.io/LaunchURLTest/
   basePath: isProd ? `/${REPO_NAME}` : '',
+
+  // === ВАЖНОЕ ДОБАВЛЕНИЕ ===
+  // Передаем этот путь в код приложения, чтобы _app.jsx мог его прочитать
+  env: {
+    NEXT_PUBLIC_BASE_PATH: isProd ? `/${REPO_NAME}` : '',
+  },
   
   // Дополнительные настройки для статики
   poweredByHeader: false,
@@ -21,4 +27,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+module.exports = nextConfig;
