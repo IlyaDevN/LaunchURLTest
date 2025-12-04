@@ -1,0 +1,14 @@
+{
+    "name": "Toolbox Launch URL",
+    "short_name": "Toolbox",
+    "icons": [
+        {
+            "src": "/LaunchURLTest/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ],
+    "theme_color": "#2e2691",
+    "background_color": "#ffffff",
+    "display": "standalone"
+}
