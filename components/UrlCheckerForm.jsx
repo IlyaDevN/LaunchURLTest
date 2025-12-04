@@ -17,6 +17,21 @@ const UrlCheckerForm = () => {
     const [warnings, setWarnings] = useState([]);
     
     const [isCopied, setIsCopied] = useState(false);
+    const [isMirror, setIsMirror] = useState(false);
+
+    // Функция проверки на зеркала
+    const checkIfMirror = (url) => {
+        if (!url) return false;
+        try {
+            const host = new URL(url).host.toLowerCase();
+            return (
+                host.includes('spribelaunch.com') || 
+                /spribegaming\d+\.click/.test(host)
+            );
+        } catch (e) {
+            return false;
+        }
+    };
 
     // === ЖИВОЕ ОПРЕДЕЛЕНИЕ ТИПА ПРИ ВВОДЕ ===
     const handleInputChange = (e) => {
@@ -31,22 +46,22 @@ const UrlCheckerForm = () => {
 
         const detected = detectUrlType(value);
         setValidationType(detected || '');
+        setIsMirror(checkIfMirror(value));
     };
 
-    // === НОВЫЙ ОБРАБОТЧИК: ВСТАВИТЬ ИЗ БУФЕРА ===
+    // === ВСТАВИТЬ ИЗ БУФЕРА ===
     const handlePaste = async () => {
         try {
             const text = await navigator.clipboard.readText();
             if (text) {
                 setUrlInput(text);
-                // Сбрасываем старые результаты
                 setParsedParams(null);
                 setError(null);
                 setWarnings([]);
                 
-                // Сразу определяем тип вставленной ссылки
                 const detected = detectUrlType(text);
                 setValidationType(detected || '');
+                setIsMirror(checkIfMirror(text));
             }
         } catch (err) {
             console.error('Не удалось прочитать буфер обмена:', err);
@@ -65,13 +80,28 @@ const UrlCheckerForm = () => {
         }
 
         let currentType = validationType;
+        
+        // Если тип еще не определен (или авто-определение не сработало)
         if (!currentType) {
             currentType = detectUrlType(urlInput);
+            
             if (!currentType) {
-                setError('Не удалось определить тип ссылки. Убедитесь, что это корректный URL Spribe.');
+                // === ЛОГИКА ФОРМИРОВАНИЯ ОШИБКИ ===
+                let baseUrlPart = urlInput;
+                try {
+                    // Пытаемся получить чистый домен и путь
+                    const u = new URL(urlInput);
+                    baseUrlPart = u.origin + u.pathname;
+                } catch (e) {
+                    // Если URL совсем битый, берем часть до знака вопроса
+                    baseUrlPart = urlInput.split('?')[0];
+                }
+
+                setError(`Не удалось определить тип ссылки.\nУбедитесь в корректности URL: ${baseUrlPart}`);
                 return;
             }
             setValidationType(currentType);
+            setIsMirror(checkIfMirror(urlInput));
         }
         
         let result;
@@ -103,6 +133,7 @@ const UrlCheckerForm = () => {
         setWarnings([]);
         setParsedParams(null);
         setValidationType('');
+        setIsMirror(false);
         setIsCopied(false);
     };
 
@@ -158,18 +189,37 @@ const UrlCheckerForm = () => {
                     
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2">
                         
-                        <div className="w-full sm:w-auto h-10 flex items-center">
-                            {typeLabel ? (
-                                <span className={`px-4 py-2 rounded-lg text-sm font-bold border ${typeLabel.color} animate-fade-in w-full sm:w-auto text-center shadow-sm`}>
-                                    {typeLabel.text}
-                                </span>
+                        {/* ЛЕВЫЙ УГОЛ: Бейджи */}
+                        <div className="w-full sm:w-auto h-10 flex items-center gap-2">
+                            {urlInput.trim() ? (
+                                typeLabel ? (
+                                    // 1. ТИП ОПРЕДЕЛЕН
+                                    <>
+                                        <span className={`px-4 py-2 rounded-lg text-sm font-bold border ${typeLabel.color} animate-fade-in shadow-sm whitespace-nowrap`}>
+                                            {typeLabel.text}
+                                        </span>
+                                        {isMirror && (
+                                            <span className="px-3 py-2 rounded-lg text-sm font-bold border bg-orange-100 text-orange-800 border-orange-200 animate-fade-in shadow-sm whitespace-nowrap flex items-center gap-1">
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                                Mirror Domain
+                                            </span>
+                                        )}
+                                    </>
+                                ) : (
+                                    // 2. ТИП НЕ ОПРЕДЕЛЕН (Ссылка введена, но домен неизвестен)
+                                    <span className="px-4 py-2 rounded-lg text-sm font-bold border bg-gray-100 text-gray-500 border-gray-300 shadow-sm whitespace-nowrap flex items-center gap-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                        Unknown Link Type
+                                    </span>
+                                )
                             ) : (
-                                urlInput && <span className="text-gray-400 text-sm italic animate-pulse">Определение типа...</span>
+                                // 3. ПОЛЕ ПУСТОЕ (ничего не показываем)
+                                null
                             )}
                         </div>
 
+                        {/* ПРАВЫЙ УГОЛ: Кнопки */}
                         <div className="flex w-full sm:w-auto gap-2 justify-end">
-                            {/* Очистить */}
                             <button
                                 type="button"
                                 onClick={handleClear}
@@ -181,7 +231,6 @@ const UrlCheckerForm = () => {
                                 </svg>
                             </button>
 
-                            {/* === НОВАЯ КНОПКА: ВСТАВИТЬ === */}
                             <button
                                 type="button"
                                 onClick={handlePaste}
@@ -193,7 +242,6 @@ const UrlCheckerForm = () => {
                                 </svg>
                             </button>
 
-                            {/* Копировать */}
                             <button
                                 type="button"
                                 onClick={handleCopy}
@@ -211,7 +259,6 @@ const UrlCheckerForm = () => {
                                 )}
                             </button>
 
-                            {/* Проверить */}
                             <button
                                 type="button" 
                                 onClick={handleCheckUrl} 
@@ -230,7 +277,6 @@ const UrlCheckerForm = () => {
                 </div>
             </div>
 
-            {/* Ошибки */}
             {error && (
                 <div className="mt-6 p-4 bg-red-100 text-red-800 border border-red-500 rounded-xl shadow-md animate-fade-in-up">
                     <div className="flex items-start">
@@ -243,13 +289,13 @@ const UrlCheckerForm = () => {
                 </div>
             )}
 
-            {/* Предупреждения */}
+            {/* Блок ПРЕДУПРЕЖДЕНИЙ */}
             {warnings.length > 0 && !error && (
                 <div className="mt-6 p-4 bg-yellow-50 text-yellow-800 border border-yellow-400 rounded-xl shadow-md animate-fade-in-up">
                     <div className="flex items-start">
                         <span className="text-2xl mr-3">⚠️</span>
                         <div>
-                            <h4 className="font-bold text-lg mb-1">Предупреждение (URL рабочий, но нестандартный):</h4>
+                            <h4 className="font-bold text-lg mb-1">Предупреждение:</h4>
                             {warnings.map((warn, index) => (
                                 <p key={index} className="whitespace-pre-wrap text-sm mb-1">{warn}</p>
                             ))}
@@ -258,7 +304,6 @@ const UrlCheckerForm = () => {
                 </div>
             )}
 
-            {/* Результаты */}
             {parsedParams && !error && (
                 <>
                     <ValidationResult data={parsedParams} />
