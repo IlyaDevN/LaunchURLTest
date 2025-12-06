@@ -16,12 +16,13 @@ export const validateLaunchURLProd = (urlToValidate) => {
     let validationErrors = [];
     let validationWarnings = []; 
     let urlObjectFull; 
+    let urlObjectParams;
     let components = { gameId: '', payload: {} }; 
     let params = {};
     
     // === 1. ПОДГОТОВКА БЕЗОПАСНОЙ СТРОКИ ===
-    // Заменяем return_url на заглушку для проверки синтаксиса
-    let urlForParamsCheck = urlToValidate.replace(/return_url=[^&]*/gi, "return_url=skipped");
+    // Заменяем return_url на заглушку
+    let urlForParamsCheck = urlToValidate.replace(/return_url\+?=[^&]*/gi, "return_url=skipped");
 
     // Проверка протокола
     if (!urlToValidate.toLowerCase().startsWith('http://') && !urlToValidate.toLowerCase().startsWith('https://')) {
@@ -39,11 +40,8 @@ export const validateLaunchURLProd = (urlToValidate) => {
         urlObjectFull = new URL(urlToValidate);
         
         // === СБОР ПАРАМЕТРОВ ===
-        // Используем стандартный итератор
         urlObjectFull.searchParams.forEach((value, key) => {
             if (key !== '') {
-                // Если ключ "return_url " (с пробелом), значит в исходнике было "return_url+"
-                // Восстанавливаем плюс для наглядности ошибки
                 if (key === 'return_url ') {
                     params['return_url+'] = value;
                 } else {
@@ -52,7 +50,7 @@ export const validateLaunchURLProd = (urlToValidate) => {
             }
         });
 
-        // === ОПРЕДЕЛЕНИЕ ИГРЫ ПО ДОМЕНУ (HOST) ===
+        // === ОПРЕДЕЛЕНИЕ ИГРЫ ПО ДОМЕНУ ===
         const host = urlObjectFull.host.toLowerCase().replace(/^www\./, '');
         const pathname = urlObjectFull.pathname;
         const pathSegments = pathname.split('/').filter(p => p);
@@ -64,26 +62,19 @@ export const validateLaunchURLProd = (urlToValidate) => {
             case host === 'launch.spribegaming.com':
             case host === 'spribelaunch.com':
                 extractedGameId = pathSegments[pathSegments.length - 1] || '';
-                if (host === 'launch.spribegaming.com' && pathSegments.length > 1) {
-                    // validationWarnings.push(...)
-                }
                 break;
-
             case host === 'cdnet-launch.apac.spribegaming.com':
                 extractedGameId = pathSegments[pathSegments.length - 1] || '';
                 break;
-
             case host === 'aviator-next.spribegaming.com':
             case host === 'aviaport.spribegaming.com':
             case isMirrorDomain:
                 extractedGameId = 'aviator';
                 break;
-
             case host === 'turbo.spribegaming.com':
             case host === 'slots.spribegaming.com':
                 extractedGameId = pathSegments[pathSegments.length - 1] || '';
                 break;
-
             case host === 'keno80.spribegaming.com': extractedGameId = 'multikeno'; break;
             case host === 'trader.spribegaming.com': extractedGameId = 'trader'; break;
             case host === 'starline.spribegaming.com': extractedGameId = 'starline'; break;
@@ -100,7 +91,7 @@ export const validateLaunchURLProd = (urlToValidate) => {
             payload: params
         };
 
-        // 2.3. Висячий слэш
+        // Висячий слэш
         if (pathname !== '/' && pathname.endsWith('/') && urlObjectFull.search) {
             validationErrors.push('Путь URL заканчивается слэшем "/" непосредственно перед строкой запроса.');
         }
@@ -117,11 +108,9 @@ export const validateLaunchURLProd = (urlToValidate) => {
 
     // 3. ПРОВЕРКА: Неизвестные параметры
     const foundParams = Object.keys(components.payload);
-    
     const unknownParams = foundParams.filter(key => {
-        // Мы не добавляем 'return_url+' в белый список, чтобы он подсвечивался как warning.
-        // Обычный 'return_url' там есть.
-        return !ALLOWED_QUERY_PARAMS_SET.has(key);
+        const cleanKey = key.replace(/\+$/, '');
+        return !ALLOWED_QUERY_PARAMS_SET.has(cleanKey) && !ALLOWED_QUERY_PARAMS_SET.has(key);
     });
 
     if (unknownParams.length > 0) {
@@ -140,28 +129,41 @@ export const validateLaunchURLProd = (urlToValidate) => {
 
     // 5. ПРОВЕРКА: Обязательные параметры
     REQUIRED_PARAMS.forEach(key => {
-        // Проверяем наличие параметра. Если в URL был return_url+, то обычного return_url не будет (если он обязателен),
-        // и это вызовет ошибку "Отсутствует параметр", что правильно для обязательных.
-        // Но return_url у нас опциональный, так что ошибки не будет.
         if (!components.payload[key] || components.payload[key].trim() === '') {
             validationErrors.push(`Отсутствует обязательный параметр: "${key}"`);
         }
     });
     
-    // 6. ПРОВЕРКА: Слэши
+    // 6. ПРОВЕРКА: Слэши в значениях
     REQUIRED_PARAMS.forEach(key => {
         const value = components.payload[key];
+        if (key.startsWith('return_url')) return;
+
         if (value && value.includes('/')) {
             validationErrors.push(`Некорректное значение: Обязательный параметр "${key}" содержит слэш (/).`);
         }
     });
 
-    // 7. ПРОВЕРКА: Валюта
+    // === 7. НОВАЯ ПРОВЕРКА: ПРОБЕЛЫ В ЗНАЧЕНИЯХ ===
+    REQUIRED_PARAMS.forEach(key => {
+        const value = components.payload[key];
+        // Проверяем на наличие пробельных символов (пробел, таб, неразрывный пробел)
+        if (value && /\s/.test(value)) {
+             validationErrors.push(`Некорректное значение: Параметр "${key}" содержит пробелы ("${value}").`);
+        }
+    });
+
+    // 8. ПРОВЕРКА: Валюта
     const currencyCode = components.payload.currency;
     if (currencyCode) {
-        const isValidCurrency = VALID_CURRENCY_CODES_SET.has(currencyCode.toUpperCase());
-        if (!isValidCurrency) {
-            validationErrors.push(`Валюта "${currencyCode}" не найдена в списке допустимых кодов.`);
+        // Проверка валюты тоже должна включать проверку на пробелы (на всякий случай)
+        if (/\s/.test(currencyCode)) {
+             validationErrors.push(`Некорректное значение: Код валюты "${currencyCode}" содержит пробелы.`);
+        } else {
+            const isValidCurrency = VALID_CURRENCY_CODES_SET.has(currencyCode.toUpperCase());
+            if (!isValidCurrency) {
+                validationErrors.push(`Валюта "${currencyCode}" не найдена в списке допустимых кодов.`);
+            }
         }
     }
     

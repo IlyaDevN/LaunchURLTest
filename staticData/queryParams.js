@@ -19,6 +19,5 @@ export const ROUND_DETAILS_PARAMS = [
   "provider",
   "operator",
   "player_token",
-  "session_token",
   "op_player_id"
 ];

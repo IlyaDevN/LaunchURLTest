@@ -11,20 +11,22 @@ const VALID_HOSTS = [
     "games-info.staging.spribe.dev"     // Stage
 ];
 
-// 3. Обязательные параметры
-const REQUIRED_PARAMS = ["round_id", "game", "provider", "operator", "op_player_id"];
+// 2. Обязательные параметры
+// === ИСПРАВЛЕНИЕ: player_token добавлен сюда, session_token убран ===
+const MANDATORY_PARAMS = ["round_id", "game", "provider", "operator", "op_player_id", "player_token"];
 
 export const validateRoundDetailsUrl = (urlToValidate) => {
-    if (!urlToValidate) return { errors: ['URL пуст'], components: null };
+    if (!urlToValidate) return { errors: ['URL пуст'], warnings: [], components: null };
     urlToValidate = urlToValidate.trim();
 
     let validationErrors = [];
+    let validationWarnings = [];
     let urlObject;
     let components = { gameId: '', payload: {} };
     let params = {};
 
     if (!urlToValidate.toLowerCase().startsWith('http://') && !urlToValidate.toLowerCase().startsWith('https://')) {
-         return { errors: ['URL должен начинаться с "http://" или "https://"'], components: null };
+         return { errors: ['URL должен начинаться с "http://" или "https://"'], warnings: [], components: null };
     }
 
     try {
@@ -66,36 +68,43 @@ export const validateRoundDetailsUrl = (urlToValidate) => {
         };
 
     } catch (e) {
-        return { errors: ['Некорректный формат URL'], components: null };
+        return { errors: ['Некорректный формат URL'], warnings: [], components: null };
     }
 
-    REQUIRED_PARAMS.forEach(key => {
+    // 3. Проверка обязательных параметров
+    MANDATORY_PARAMS.forEach(key => {
         if (!params[key] || params[key].trim() === '') {
             validationErrors.push(`Отсутствует обязательный параметр: "${key}"`);
         }
     });
+    
+    // 3.1 Проверка пробелов в значениях
+    Object.keys(params).forEach(key => {
+        const value = params[key];
+        // Проверяем только обязательные поля
+        if (MANDATORY_PARAMS.includes(key) && value && /\s/.test(value)) {
+             validationErrors.push(`Некорректное значение: Параметр "${key}" содержит пробелы ("${value}").`);
+        }
+    });
 
-    if (!params['player_token'] && !params['session_token']) {
-        validationErrors.push(`Отсутствует токен игрока (ожидался "player_token" или "session_token")`);
-    }
-
+    // Если есть ошибки, возвращаем их
     if (validationErrors.length > 0) {
-        return { errors: validationErrors, components };
+        return { errors: validationErrors, warnings: validationWarnings, components };
     }
 
-    const gameId = components.gameId;
-    const provider = params['provider'];
+    // 4. Логическая валидация (Игра + Провайдер)
+    const gameId = (components.gameId || '').trim();
+    const provider = (params['provider'] || '').trim();
 
-    // Ищем игру в общем конфиге
     const gameConfig = GAMES_CONFIG.find(g => g.id === gameId);
     
     if (!gameConfig) {
-        validationErrors.push(`Предупреждение: ID игры "${gameId}" не найден в справочнике валидатора.`);
+        validationWarnings.push(`Предупреждение: ID игры "${gameId}" не найден в справочнике валидатора.`);
     } else {
         if (provider !== gameConfig.provider) {
             validationErrors.push(`Неверный provider для игры "${gameId}". Ожидался: "${gameConfig.provider}", получен: "${provider}"`);
         }
     }
 
-    return { errors: validationErrors, components };
+    return { errors: validationErrors, warnings: validationWarnings, components };
 };
