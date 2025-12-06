@@ -29,18 +29,29 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
 
     const isStage = isStageEnvironment();
 
-    // === ЛОГИКА ОПРЕДЕЛЕНИЯ РЕГИОНА ===
+    // === ЛОГИКА ОПРЕДЕЛЕНИЯ РЕГИОНА (ОБНОВЛЕННАЯ) ===
     const getRegionInfo = (host) => {
         if (!host || host === "-") return { code: "UNKNOWN", color: "bg-gray-100 text-gray-600" };
-
-        if (host.includes("eu-west-1")) return { code: "STAGE EU", color: "bg-pink-100 text-pink-800" };
-        if (host.includes("eu-central-1")) return { code: "EU", color: "bg-blue-100 text-blue-800" };
-        if (host.includes("af-south-1")) return { code: "AF", color: "bg-yellow-100 text-yellow-800" };
-        if (host.includes("apac")) return { code: "APAC", color: "bg-red-100 text-red-800" };
-        if (host.includes("sa-east-1")) return { code: "SA", color: "bg-green-100 text-green-800" };
-        if (host.includes("app-hr1")) return { code: "HR", color: "bg-purple-100 text-purple-800" };
         
-        if (host.includes("staging")) return { code: "STAGE", color: "bg-yellow-100 text-yellow-800" };
+        // Приводим к нижнему регистру для надежности
+        const h = host.toLowerCase();
+
+        if (h.includes("eu-west-1")) return { code: "STAGE EU", color: "bg-pink-100 text-pink-800" };
+        if (h.includes("eu-central-1")) return { code: "EU", color: "bg-blue-100 text-blue-800" };
+        
+        // Проверка Африки
+        if (h.includes("af-south-1")) return { code: "AF", color: "bg-yellow-100 text-yellow-800" };
+        
+        // Проверка APAC (Азия): добавляем коды регионов AWS
+        if (h.includes("apac") || h.includes("ap-east-1") || h.includes("ap-southeast-1")) {
+             return { code: "APAC", color: "bg-red-100 text-red-800" };
+        }
+        
+        if (h.includes("sa-east-1")) return { code: "SA", color: "bg-green-100 text-green-800" };
+        if (h.includes("app-hr1")) return { code: "HR", color: "bg-purple-100 text-purple-800" };
+        
+        // Staging
+        if (h.includes("staging")) return { code: "STAGE", color: "bg-yellow-100 text-yellow-800" };
 
         return { code: "CUSTOM / UNKNOWN", color: "bg-gray-100 text-gray-800" };
     };
@@ -166,21 +177,19 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
 
         // 1. Проверяем структуру Turbo/Slots (объект games)
         if (configData?.games) {
-            // Ищем конфиг конкретно для текущей игры
             if (configData.games[gameId]) {
                 const gameConfig = configData.games[gameId];
                 host = gameConfig.host || "-";
                 zone = gameConfig.zone || "-";
             } else {
                 isGameFound = false;
-                // === ИЗМЕНЕНИЕ: Пытаемся найти данные из ЛЮБОЙ другой игры ===
                 const availableGames = Object.keys(configData.games);
                 if (availableGames.length > 0) {
                     const firstGameKey = availableGames[0];
                     const fallbackConfig = configData.games[firstGameKey];
                     host = fallbackConfig.host || "-";
                     zone = fallbackConfig.zone || "-";
-                    isFallbackData = true; // Помечаем, что данные не родные
+                    isFallbackData = true;
                 }
             }
         } 
@@ -204,23 +213,20 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
 
         return (
             <div className="mb-6">
-                {/* Предупреждение, если игра не найдена, но мы нашли данные другой игры */}
                 {!isGameFound && isFallbackData && (
                     <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg mb-4 text-sm">
-                        ⚠️ Настройки для <strong>{gameId}</strong> отсутствуют! Возможно игра  не включена для данного оператора.
+                        ⚠️ Настройки для <strong>{gameId}</strong> отсутствуют! Возможно игра не включена для данного оператора.
                         <br/>
                         Ниже показаны параметры региона на основе других игр из конфигурации оператора.
                     </div>
                 )}
                 
-                {/* Если вообще ничего не нашли */}
                 {!isGameFound && !isFallbackData && (
                     <div className="p-4 bg-red-50 text-red-800 border border-red-200 rounded-lg mb-4 text-sm">
                         ❌ Игра <strong>{gameId}</strong> не найдена, и нет данных других игр для определения региона.
                     </div>
                 )}
 
-                {/* Карточки отображаем, если есть хоть какие-то данные (родные или fallback) */}
                 {(isGameFound || isFallbackData) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
                         <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col items-center justify-center text-center h-full">
@@ -307,12 +313,9 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                                         href={links.adminArea}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        // БЫЛО: bg-[#990000] text-white ...
-                                        // СТАЛО: bg-red-50 (светлый), text-[#990000] (бордовый текст), border-red-200
                                         className="flex items-center justify-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-[#990000] font-bold hover:bg-red-100 hover:shadow-md transition-all group"
                                     >
                                         <span>🛠️ Admin Area</span>
-                                        {/* Иконка: светло-красная, при наведении темнеет до бордового */}
                                         <svg className="w-4 h-4 text-red-400 group-hover:text-[#990000]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                                     </a>
                                 </div>

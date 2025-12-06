@@ -1,15 +1,20 @@
 // components/ValidationResult.jsx
-import { useState } from "react";
-// 1. Импортируем списки разрешенных параметров
-import { REQUIRED_PARAMS, OPTIONAL_PARAMS } from "../staticData/queryParams.js";
+import { useState, useMemo } from "react";
+// Импортируем новый список
+import { REQUIRED_PARAMS, OPTIONAL_PARAMS, ROUND_DETAILS_PARAMS } from "../staticData/queryParams.js";
 
-const ValidationResult = ({ data }) => {
+const ValidationResult = ({ data, validationType }) => { // Добавлен проп validationType
     const [showJson, setShowJson] = useState(false);
     const [copiedKey, setCopiedKey] = useState(null);
 
-    // Создаем Set для быстрой проверки (объединяем обязательные и опциональные)
-    // Делаем это вне рендера или используем useMemo, но здесь массив небольшой, можно и так.
-    const KNOWN_PARAMS = new Set([...REQUIRED_PARAMS, ...OPTIONAL_PARAMS]);
+    // Выбираем правильный набор параметров в зависимости от типа валидации
+    const KNOWN_PARAMS = useMemo(() => {
+        if (validationType === 'roundDetailsValidation') {
+            return new Set(ROUND_DETAILS_PARAMS);
+        }
+        // Для Launch URL (Prod и Stage)
+        return new Set([...REQUIRED_PARAMS, ...OPTIONAL_PARAMS]);
+    }, [validationType]);
 
     if (!data) return null;
 
@@ -67,14 +72,12 @@ const ValidationResult = ({ data }) => {
                         {Object.entries(data.payload).map(([key, value]) => {
                             const isCopied = copiedKey === key;
                             
-                            // 2. Проверяем, является ли параметр известным
+                            // Проверяем по динамическому списку
                             const isKnown = KNOWN_PARAMS.has(key);
 
                             return (
                                 <div key={key} className="flex flex-col sm:flex-row sm:items-center justify-between py-1 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-colors group">
-                                    {/* 3. Стилизация названия параметра */}
                                     <span className={`font-semibold w-1/3 mb-1 sm:mb-0 flex items-center gap-1 ${isKnown ? 'text-gray-700' : 'text-amber-600'}`}>
-                                        {/* Если параметр неизвестен, добавляем иконку и тултип */}
                                         {!isKnown && (
                                             <span title="Неизвестный параметр (нестандартный)">⚠️</span>
                                         )}

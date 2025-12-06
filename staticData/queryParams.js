@@ -12,3 +12,13 @@ export const OPTIONAL_PARAMS = [
   "irc_duration",
   "irc_elapsed",
 ];
+
+export const ROUND_DETAILS_PARAMS = [
+  "round_id",
+  "game",
+  "provider",
+  "operator",
+  "player_token",
+  "session_token",
+  "op_player_id"
+];

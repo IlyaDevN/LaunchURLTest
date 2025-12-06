@@ -27,6 +27,12 @@ const GAMES_MAPPING = [
     { id: "crystal-fall", provider: "spribe_slots" },
     { id: "neo-vegas", provider: "spribe_slots" },
     { id: "gates-of-egypt", provider: "spribe_slots" },
+    { id: "forest-of-wisps", provider: "spribe_slots" },
+    { id: "keplers-paradise", provider: "spribe_slots" },
+    { id: "alien-farm", provider: "spribe_slots" },
+    { id: "viking-pub", provider: "spribe_slots" },
+    { id: "fruit-garden", provider: "spribe_slots" },
+    { id: "piggy-heist", provider: "spribe_slots" }
 ];
 
 // 3. Обязательные параметры

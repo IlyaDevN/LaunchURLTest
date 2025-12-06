@@ -305,7 +305,10 @@ const UrlCheckerForm = () => {
 
             {parsedParams && !error && (
                 <>
-                    <ValidationResult data={parsedParams} />
+                    <ValidationResult 
+                        data={parsedParams} 
+                        validationType={validationType} 
+                    />
                     
                     <OperatorConfigViewer 
                         gameId={parsedParams.gameId} 
