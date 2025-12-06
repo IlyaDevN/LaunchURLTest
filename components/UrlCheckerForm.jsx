@@ -8,6 +8,7 @@ import { detectUrlType } from "../utils/helpers/urlTypeDetector.js";
 
 import ValidationResult from "./ValidationResult.jsx";
 import OperatorConfigViewer from "./OperatorConfigViewer.jsx";
+import LogCommandGenerator from "./LogCommandGenerator.jsx";
 
 const UrlCheckerForm = () => {
     const [urlInput, setUrlInput] = useState('');
@@ -33,20 +34,29 @@ const UrlCheckerForm = () => {
         }
     };
 
-    // === ЖИВОЕ ОПРЕДЕЛЕНИЕ ТИПА ПРИ ВВОДЕ ===
+    // === БЕЗОПАСНАЯ ОБРАБОТКА ВВОДА ===
     const handleInputChange = (e) => {
         const value = e.target.value;
+        
+        // 1. Сначала обновляем состояние ввода, чтобы интерфейс реагировал мгновенно
         setUrlInput(value);
 
+        // Сбрасываем результаты при изменении
         if (parsedParams || error) {
             setParsedParams(null);
             setError(null);
             setWarnings([]);
         }
 
-        const detected = detectUrlType(value);
-        setValidationType(detected || '');
-        setIsMirror(checkIfMirror(value));
+        // 2. Пытаемся определить тип (в try-catch на случай сбоя парсера)
+        try {
+            const detected = detectUrlType(value);
+            setValidationType(detected || '');
+            setIsMirror(checkIfMirror(value));
+        } catch (err) {
+            console.warn("Ошибка автоопределения типа:", err);
+            // Не блокируем ввод, просто тип останется пустым
+        }
     };
 
     // === ВСТАВИТЬ ИЗ БУФЕРА ===
@@ -54,21 +64,16 @@ const UrlCheckerForm = () => {
         try {
             const text = await navigator.clipboard.readText();
             if (text) {
-                setUrlInput(text);
-                setParsedParams(null);
-                setError(null);
-                setWarnings([]);
-                
-                const detected = detectUrlType(text);
-                setValidationType(detected || '');
-                setIsMirror(checkIfMirror(text));
+                // Вызываем нашу безопасную функцию, чтобы отработала вся логика
+                handleInputChange({ target: { value: text } });
             }
         } catch (err) {
             console.error('Не удалось прочитать буфер обмена:', err);
+            // Если нужно, можно добавить alert, но лучше просто ничего не делать
         }
     };
 
-    // === ГЛАВНЫЙ ОБРАБОТЧИК ===
+    // === ГЛАВНЫЙ ОБРАБОТЧИК ВАЛИДАЦИИ ===
     const handleCheckUrl = () => {
         setError(null);
         setWarnings([]);
@@ -81,22 +86,19 @@ const UrlCheckerForm = () => {
 
         let currentType = validationType;
         
-        // Если тип еще не определен (или авто-определение не сработало)
+        // Если тип не определился автоматически, пробуем еще раз
         if (!currentType) {
             currentType = detectUrlType(urlInput);
             
             if (!currentType) {
-                // === ЛОГИКА ФОРМИРОВАНИЯ ОШИБКИ ===
+                // Пытаемся показать пользователю часть URL для диагностики
                 let baseUrlPart = urlInput;
                 try {
-                    // Пытаемся получить чистый домен и путь
                     const u = new URL(urlInput);
                     baseUrlPart = u.origin + u.pathname;
                 } catch (e) {
-                    // Если URL совсем битый, берем часть до знака вопроса
                     baseUrlPart = urlInput.split('?')[0];
                 }
-
                 setError(`Не удалось определить тип ссылки.\nУбедитесь в корректности URL: ${baseUrlPart}`);
                 return;
             }
@@ -114,6 +116,7 @@ const UrlCheckerForm = () => {
             result = validateRoundDetailsUrl(urlInput);
         }
 
+        // Обработка результатов
         if (result.components) {
             setParsedParams(result.components);
         }
@@ -193,7 +196,6 @@ const UrlCheckerForm = () => {
                         <div className="w-full sm:w-auto h-10 flex items-center gap-2">
                             {urlInput.trim() ? (
                                 typeLabel ? (
-                                    // 1. ТИП ОПРЕДЕЛЕН
                                     <>
                                         <span className={`px-4 py-2 rounded-lg text-sm font-bold border ${typeLabel.color} animate-fade-in shadow-sm whitespace-nowrap`}>
                                             {typeLabel.text}
@@ -206,16 +208,12 @@ const UrlCheckerForm = () => {
                                         )}
                                     </>
                                 ) : (
-                                    // 2. ТИП НЕ ОПРЕДЕЛЕН (Ссылка введена, но домен неизвестен)
                                     <span className="px-4 py-2 rounded-lg text-sm font-bold border bg-gray-100 text-gray-500 border-gray-300 shadow-sm whitespace-nowrap flex items-center gap-2">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                         Unknown Link Type
                                     </span>
                                 )
-                            ) : (
-                                // 3. ПОЛЕ ПУСТОЕ (ничего не показываем)
-                                null
-                            )}
+                            ) : null}
                         </div>
 
                         {/* ПРАВЫЙ УГОЛ: Кнопки */}
@@ -277,6 +275,7 @@ const UrlCheckerForm = () => {
                 </div>
             </div>
 
+            {/* Ошибки */}
             {error && (
                 <div className="mt-6 p-4 bg-red-100 text-red-800 border border-red-500 rounded-xl shadow-md animate-fade-in-up">
                     <div className="flex items-start">
@@ -314,6 +313,11 @@ const UrlCheckerForm = () => {
                         validationType={validationType}
                         analyzedHost={parsedParams.host} 
                     />
+
+                    {/* БЛОК ГЕНЕРАЦИИ КОМАНД (Выводится, если есть токен или юзер) */}
+                    {parsedParams.payload && (
+                        <LogCommandGenerator payload={parsedParams.payload} />
+                    )}
                 </>
             )}
 
