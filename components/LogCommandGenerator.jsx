@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 const LogCommandGenerator = ({ payload }) => {
     const [copiedId, setCopiedId] = useState(null);
 
-    // Получаем параметры
-    const token = payload?.token || "TOKEN_NOT_FOUND";
-    const user = payload?.user || "USER_NOT_FOUND";
+    // === УЛУЧШЕННОЕ ИЗВЛЕЧЕНИЕ ПАРАМЕТРОВ ===
+    // Поддержка как Launch URL (user, token), так и Round Details (op_player_id, player_token)
+    const token = payload?.token || payload?.player_token || payload?.session_token || "TOKEN_NOT_FOUND";
+    const user = payload?.user || payload?.op_player_id || "USER_NOT_FOUND";
     const operator = payload?.operator || "OPERATOR_NOT_FOUND";
     
     const [searchTerm, setSearchTerm] = useState(token);
@@ -37,9 +38,8 @@ const LogCommandGenerator = ({ payload }) => {
         const yyyy = now.getFullYear();
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(now.getDate()).padStart(2, '0');
+        
         const currentHour = now.getHours();
-
-        // Берем предыдущий час по умолчанию
         const prevHourNum = currentHour > 0 ? currentHour - 1 : 0;
         const prevHourStr = String(prevHourNum).padStart(2, '0');
 
@@ -58,7 +58,7 @@ const LogCommandGenerator = ({ payload }) => {
         setToMs("999");
     }, []);
 
-    // 2. Обновляем searchTerm
+    // 2. Обновляем searchTerm при изменении параметров
     useEffect(() => {
         if (searchType === 'token') setSearchTerm(token);
         else if (searchType === 'user') setSearchTerm(user);
@@ -81,13 +81,11 @@ const LogCommandGenerator = ({ payload }) => {
         }));
     };
 
-    // Обработчик для ввода миллисекунд (только цифры, макс 3)
     const handleMsChange = (setter, value) => {
         const numericValue = value.replace(/\D/g, '').slice(0, 3);
         setter(numericValue);
     };
 
-    // Списки для селектов
     const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
     const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
     const seconds = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
@@ -107,14 +105,10 @@ const LogCommandGenerator = ({ payload }) => {
         }
     ];
 
-    // === ГЕНЕРАЦИЯ КОМАНД ===
     const getCommandTemplates = (filename) => {
-        // Формируем полные временные метки: "2025-12-04 14:30:00.000"
-        // Разделитель миллисекунд (.) может отличаться в разных логах (иногда ,), но точка стандартнее для awk
         const startTime = `${selectedDate} ${fromHour}:${fromMinute}:${fromSecond}.${fromMs.padEnd(3, '0')}`;
         const endTime = `${selectedDate} ${toHour}:${toMinute}:${toSecond}.${toMs.padEnd(3, '0')}`;
         
-        // Логика выбора файлов
         let fileHourPart = "";
 
         if (fromHour === toHour) {
@@ -136,7 +130,6 @@ const LogCommandGenerator = ({ payload }) => {
             {
                 label: "Точный диапазон (AWK)",
                 desc: `Поиск с ${fromHour}:${fromMinute}:${fromSecond} по ${toHour}:${toMinute}:${toSecond}`,
-                // $0 >= "YYYY-MM-DD HH:MM:SS.mmm" - строковое сравнение работает корректно для ISO формата
                 cmd: `zcat ${fileTarget} | awk '$0 >= "${startTime}" && $0 <= "${endTime}"' | grep "${searchTerm}"`
             },
             {
