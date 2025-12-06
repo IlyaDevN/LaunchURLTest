@@ -1,6 +1,7 @@
 // components/OperatorConfigViewer.jsx
 import { useState, useEffect, useCallback } from "react";
-import { TURBO_GAMES, SLOT_GAMES } from "../staticData/games.js";
+// Импортируем общий конфиг
+import { GAMES_CONFIG } from "../staticData/games.js";
 
 const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }) => {
     const [configData, setConfigData] = useState(null);
@@ -16,96 +17,59 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         setShowJson(false); 
     }, [gameId, operator, validationType, analyzedHost]);
 
-    // === ЛОГИКА ОПРЕДЕЛЕНИЯ СРЕДЫ ===
+    // ... (функции isStageEnvironment, getRegionInfo, getGeneralHostForLinks, getManagementLinks БЕЗ ИЗМЕНЕНИЙ) ...
+    // Для краткости я их свернул, так как они не менялись. Вставьте их сюда из вашего предыдущего файла.
+    
+    // Вставляем весь код вспомогательных функций (isStageEnvironment, getRegionInfo и т.д.)
+    // ...
     const isStageEnvironment = () => {
         if (validationType === 'stageLaunchURLValidation') return true;
         if (validationType === 'roundDetailsValidation' && analyzedHost) {
-            if (analyzedHost.includes('staging') || analyzedHost.includes('spribe.dev')) {
-                return true;
-            }
+            if (analyzedHost.includes('staging') || analyzedHost.includes('spribe.dev')) return true;
         }
         return false;
     };
-
     const isStage = isStageEnvironment();
 
-    // === ЛОГИКА ОПРЕДЕЛЕНИЯ РЕГИОНА (ОБНОВЛЕННАЯ) ===
     const getRegionInfo = (host) => {
         if (!host || host === "-") return { code: "UNKNOWN", color: "bg-gray-100 text-gray-600" };
-        
-        // Приводим к нижнему регистру для надежности
         const h = host.toLowerCase();
-
         if (h.includes("eu-west-1")) return { code: "STAGE EU", color: "bg-pink-100 text-pink-800" };
         if (h.includes("eu-central-1")) return { code: "EU", color: "bg-blue-100 text-blue-800" };
-        
-        // Проверка Африки
         if (h.includes("af-south-1")) return { code: "AF", color: "bg-yellow-100 text-yellow-800" };
-        
-        // Проверка APAC (Азия): добавляем коды регионов AWS
-        if (h.includes("apac") || h.includes("ap-east-1") || h.includes("ap-southeast-1")) {
-             return { code: "APAC", color: "bg-red-100 text-red-800" };
-        }
-        
+        if (h.includes("apac") || h.includes("ap-east-1") || h.includes("ap-southeast-1")) return { code: "APAC", color: "bg-red-100 text-red-800" };
         if (h.includes("sa-east-1")) return { code: "SA", color: "bg-green-100 text-green-800" };
         if (h.includes("app-hr1")) return { code: "HR", color: "bg-purple-100 text-purple-800" };
-        
-        // Staging
         if (h.includes("staging")) return { code: "STAGE", color: "bg-yellow-100 text-yellow-800" };
-
         return { code: "CUSTOM / UNKNOWN", color: "bg-gray-100 text-gray-800" };
     };
 
-    // === БЕЗОПАСНОЕ ИЗВЛЕЧЕНИЕ ХОСТА (ДЛЯ ССЫЛОК) ===
     const getGeneralHostForLinks = (data) => {
         if (!data) return null;
-        
-        // 1. Проверяем структуру Turbo/Slots (где есть объект games)
         if (data.games) {
-            if (data.games[gameId] && data.games[gameId].host) {
-                return data.games[gameId].host;
-            }
-            // Fallback: берем первую попавшуюся игру
+            if (data.games[gameId] && data.games[gameId].host) return data.games[gameId].host;
             const firstGameKey = Object.keys(data.games)[0];
-            if (firstGameKey && data.games[firstGameKey].host) {
-                return data.games[firstGameKey].host;
-            }
+            if (firstGameKey && data.games[firstGameKey].host) return data.games[firstGameKey].host;
         }
-
-        // 2. Проверяем структуру Aviator (servers/ws)
-        if (data.servers && Array.isArray(data.servers) && data.servers.length > 0) {
-            return data.servers[0].host;
-        } else if (data.ws) {
-            return data.ws.host;
-        }
+        if (data.servers && Array.isArray(data.servers) && data.servers.length > 0) return data.servers[0].host;
+        else if (data.ws) return data.ws.host;
         return null;
     };
 
     const getManagementLinks = () => {
-        if (isStage) {
-            return {
-                clientArea: "https://clientarea.staging.spribe.dev",
-                adminArea: "https://admin.staging.spribe.dev"
-            };
-        }
-
+        if (isStage) return { clientArea: "https://clientarea.staging.spribe.dev", adminArea: "https://admin.staging.spribe.dev" };
         const host = getGeneralHostForLinks(configData);
         const regionInfo = getRegionInfo(host);
-        
         let clientAreaUrl = "https://clientarea.spribegaming.com"; 
-
         switch (regionInfo.code) {
             case 'AF': clientAreaUrl = "https://clientarea-af.spribegaming.com"; break;
             case 'APAC': clientAreaUrl = "https://clientarea-ap.spribegaming.com"; break;
             case 'SA': clientAreaUrl = "https://clientarea-sa.spribegaming.com"; break;
             case 'HR': clientAreaUrl = "https://clientarea-hr.spribegaming.com"; break;
         }
-
-        return {
-            clientArea: clientAreaUrl,
-            adminArea: "https://admin.spribe.io"
-        };
+        return { clientArea: clientAreaUrl, adminArea: "https://admin.spribe.io" };
     };
+    // ... конец вспомогательных функций
 
     const fetchConfig = useCallback(async () => {
         if (!gameId || !operator) return;
@@ -114,13 +78,19 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         setError(null);
         setConfigData(null);
 
-        let urlGamePath;
-        if (TURBO_GAMES.includes(gameId)) {
-            urlGamePath = 'turbo';
-        } else if (SLOT_GAMES.includes(gameId)) {
-            urlGamePath = 'slots';
-        } else {
-            urlGamePath = gameId;
+        // === НОВАЯ ЛОГИКА: ОПРЕДЕЛЕНИЕ ПУТИ ЧЕРЕЗ GAMES_CONFIG ===
+        let urlGamePath = gameId; // По умолчанию путь равен ID игры (aviator -> aviator)
+        
+        // Ищем игру в конфиге
+        const gameInfo = GAMES_CONFIG.find(g => g.id === gameId);
+        
+        if (gameInfo) {
+            if (gameInfo.category === 'turbo') {
+                urlGamePath = 'turbo';
+            } else if (gameInfo.category === 'slots') {
+                urlGamePath = 'slots';
+            }
+            // Если crash или multiplayer, путь остается равным gameId
         }
 
         let baseUrl;
@@ -167,15 +137,13 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         fetchConfig();
     }, [fetchConfig]);
 
-    // === УНИВЕРСАЛЬНЫЙ РЕНДЕР ДАННЫХ ИГРЫ ===
+    // === УНИВЕРСАЛЬНЫЙ РЕНДЕР ДАННЫХ ИГРЫ (без изменений) ===
     const renderGameData = () => {
         let host = "-";
         let zone = "-";
-        
-        let isGameFound = true; // Игра есть в конфиге
-        let isFallbackData = false; // Данные взяты из "соседней" игры
+        let isGameFound = true; 
+        let isFallbackData = false; 
 
-        // 1. Проверяем структуру Turbo/Slots (объект games)
         if (configData?.games) {
             if (configData.games[gameId]) {
                 const gameConfig = configData.games[gameId];
@@ -192,9 +160,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                     isFallbackData = true;
                 }
             }
-        } 
-        // 2. Проверяем структуру Aviator (servers/ws)
-        else if (configData?.servers && Array.isArray(configData.servers) && configData.servers.length > 0) {
+        } else if (configData?.servers && Array.isArray(configData.servers) && configData.servers.length > 0) {
             host = configData.servers[0].host || "-";
             zone = configData.servers[0].zone || "-";
         } else if (configData?.ws) {
@@ -205,8 +171,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         }
 
         const regionInfo = getRegionInfo(host);
-
-        // Рендер карточек
         const cardClass = "bg-gray-50 p-4 rounded-lg border border-gray-100 flex flex-col items-center justify-center text-center h-full";
         const labelClass = "text-gray-400 text-xs font-bold uppercase tracking-wider mb-2";
         const valueClass = "text-sm font-mono font-bold text-gray-700 break-all";
@@ -215,15 +179,14 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
             <div className="mb-6">
                 {!isGameFound && isFallbackData && (
                     <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg mb-4 text-sm">
-                        ⚠️ Настройки для <strong>{gameId}</strong> отсутствуют! Возможно игра не включена для данного оператора.
-                        <br/>
-                        Ниже показаны параметры региона на основе других игр из конфигурации оператора.
+                        ⚠️ Настройки для <strong>{gameId}</strong> отсутствуют! <strong>Возможно игра не включена для данного оператора.</strong>
+                        <br/>Ниже показаны параметры региона на основе других игр.
                     </div>
                 )}
                 
                 {!isGameFound && !isFallbackData && (
                     <div className="p-4 bg-red-50 text-red-800 border border-red-200 rounded-lg mb-4 text-sm">
-                        ❌ Игра <strong>{gameId}</strong> не найдена, и нет данных других игр для определения региона.
+                        ❌ Игра <strong>{gameId}</strong> не найдена, и нет данных других игр.
                     </div>
                 )}
 
@@ -261,32 +224,23 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
             </div>
 
             <div className="p-6">
-                {/* Загрузка */}
                 {loading && (
                     <div className="flex items-center text-indigo-600 py-4 justify-center">
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         Загрузка конфигурации...
                     </div>
                 )}
 
-                {/* Ошибка */}
                 {error && (
                     <div className="mt-4 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
                         <p className="font-bold">❌ Ошибка загрузки конфига:</p>
                         <p className="whitespace-pre-wrap mt-1">{error}</p>
-                        <button 
-                            onClick={fetchConfig}
-                            className="mt-3 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition text-xs font-semibold"
-                        >
+                        <button onClick={fetchConfig} className="mt-3 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition text-xs font-semibold">
                             Повторить попытку
                         </button>
                     </div>
                 )}
 
-                {/* Успех */}
                 {configData && !loading && (
                     <div className="animate-fade-in">
                         <p className="text-xs text-gray-500 mb-4 flex justify-between">
@@ -300,21 +254,11 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                             const links = getManagementLinks();
                             return (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                                    <a 
-                                        href={links.clientArea}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 font-bold hover:bg-indigo-100 hover:shadow-md transition-all group"
-                                    >
+                                    <a href={links.clientArea} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 font-bold hover:bg-indigo-100 hover:shadow-md transition-all group">
                                         <span>👤 Client Area</span>
                                         <svg className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                                     </a>
-                                    <a 
-                                        href={links.adminArea}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-[#990000] font-bold hover:bg-red-100 hover:shadow-md transition-all group"
-                                    >
+                                    <a href={links.adminArea} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-[#990000] font-bold hover:bg-red-100 hover:shadow-md transition-all group">
                                         <span>🛠️ Admin Area</span>
                                         <svg className="w-4 h-4 text-red-400 group-hover:text-[#990000]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                                     </a>
@@ -323,22 +267,15 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                         })()}
 
                         <div className="border-t border-gray-100 pt-4">
-                            <button
-                                onClick={() => setShowJson(!showJson)}
-                                className="text-xs text-gray-500 hover:text-[#2e2691] font-medium flex items-center gap-1 focus:outline-none transition-colors"
-                            >
+                            <button onClick={() => setShowJson(!showJson)} className="text-xs text-gray-500 hover:text-[#2e2691] font-medium flex items-center gap-1 focus:outline-none transition-colors">
                                 {showJson ? '🔼 Скрыть сырой JSON' : '🔽 Показать сырой JSON'}
                             </button>
-                            
                             {showJson && (
                                 <div className="mt-3 relative group">
                                     <pre className="p-4 bg-gray-900 text-green-400 rounded-lg overflow-auto text-xs font-mono border border-gray-700 shadow-inner max-h-96">
                                         {JSON.stringify(configData, null, 2)}
                                     </pre>
-                                    <button 
-                                        onClick={() => navigator.clipboard.writeText(JSON.stringify(configData, null, 2))}
-                                        className="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
+                                    <button onClick={() => navigator.clipboard.writeText(JSON.stringify(configData, null, 2))} className="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                                         Copy JSON
                                     </button>
                                 </div>
@@ -346,10 +283,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                         </div>
                         
                         <div className="mt-4 flex justify-end">
-                            <button 
-                                onClick={fetchConfig}
-                                className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors"
-                            >
+                            <button onClick={fetchConfig} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">
                                 🔄 Обновить данные
                             </button>
                         </div>

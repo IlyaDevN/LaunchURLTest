@@ -1,5 +1,7 @@
 // components/RoundDetails.jsx
 import { useState, useMemo } from "react";
+// Импорт общего конфига
+import { GAMES_CONFIG } from "../staticData/games.js";
 
 // === 1. СПИСОК РЕГИОНОВ ===
 const REGIONS = [
@@ -11,29 +13,11 @@ const REGIONS = [
     { name: "Stage", url: "https://games-info.staging.spribe.dev/" }
 ];
 
-// === 2. МАППИНГ ИГР ===
-const GAMES_MAPPING = [
-    { name: "Aviator", id: "aviator", provider: "spribe_aviator" },
-    { name: "Dice", id: "dice", provider: "spribe_crypto" },
-    { name: "Goal", id: "goal", provider: "spribe_crypto" },
-    { name: "Plinko", id: "plinko", provider: "spribe_crypto" },
-    { name: "Mines", id: "mines", provider: "spribe_crypto" },
-    { name: "Hi Lo", id: "hi-lo", provider: "spribe_crypto" },
-    { name: "Keno", id: "keno", provider: "spribe_crypto" },
-    { name: "Mini Roulette", id: "mini-roulette", provider: "spribe_crypto" },
-    { name: "Hotline", id: "hotline", provider: "spribe_crypto" },
-    { name: "Balloon", id: "balloon", provider: "spribe_crypto" },
-    { name: "Keno 80 (Multikeno)", id: "multikeno", provider: "spribe_keno" },
-    { name: "Trader", id: "trader", provider: "spribe_trader" },
-    { name: "Crystal Fall", id: "crystal-fall", provider: "spribe_slots" },
-    { name: "Neo Vegas", id: "neo-vegas", provider: "spribe_slots" },
-    { name: "Gates of Egypt", id: "gates-of-egypt", provider: "spribe_slots" },
-];
-
 const RoundDetails = () => {
     // Состояние формы
     const [baseUrl, setBaseUrl] = useState(REGIONS[0].url);
-    const [selectedGameId, setSelectedGameId] = useState(GAMES_MAPPING[0].id);
+    // Берем первую игру из конфига по умолчанию
+    const [selectedGameId, setSelectedGameId] = useState(GAMES_CONFIG[0].id);
     const [formData, setFormData] = useState({
         round_id: "",
         operator: "",
@@ -45,9 +29,9 @@ const RoundDetails = () => {
     const [generatedUrl, setGeneratedUrl] = useState(null);
     const [isCopied, setIsCopied] = useState(false);
 
-    // Вычисляем текущего провайдера
+    // Вычисляем текущего провайдера на основе общего конфига
     const currentProvider = useMemo(() => {
-        return GAMES_MAPPING.find(g => g.id === selectedGameId)?.provider || "";
+        return GAMES_CONFIG.find(g => g.id === selectedGameId)?.provider || "";
     }, [selectedGameId]);
 
     const handleInputChange = (e) => {
@@ -142,7 +126,8 @@ const RoundDetails = () => {
                             onChange={(e) => setSelectedGameId(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#2e2691] focus:border-[#2e2691] bg-white"
                         >
-                            {GAMES_MAPPING.map((game) => (
+                            {/* Рендерим игры из общего конфига */}
+                            {GAMES_CONFIG.map((game) => (
                                 <option key={game.id} value={game.id}>
                                     {game.name}
                                 </option>
