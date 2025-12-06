@@ -34,7 +34,6 @@ const RoundDetails = () => {
     // Состояние формы
     const [baseUrl, setBaseUrl] = useState(REGIONS[0].url);
     const [selectedGameId, setSelectedGameId] = useState(GAMES_MAPPING[0].id);
-    
     const [formData, setFormData] = useState({
         round_id: "",
         operator: "",
@@ -42,57 +41,36 @@ const RoundDetails = () => {
         op_player_id: "",
     });
 
-    // Состояние для ошибок валидации
     const [errors, setErrors] = useState({});
-    
     const [generatedUrl, setGeneratedUrl] = useState(null);
+    const [isCopied, setIsCopied] = useState(false);
 
-    // Вычисляем текущего провайдера на основе выбранной игры
+    // Вычисляем текущего провайдера
     const currentProvider = useMemo(() => {
         return GAMES_MAPPING.find(g => g.id === selectedGameId)?.provider || "";
     }, [selectedGameId]);
 
-    // Обработчик изменения инпутов
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        
-        // Очищаем ошибку при вводе
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: null }));
-        }
-
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Функция валидации
     const validate = () => {
         const newErrors = {};
-        
         if (!formData.operator.trim()) newErrors.operator = "Operator Key is required";
         if (!formData.round_id.trim()) newErrors.round_id = "Round ID is required";
         if (!formData.player_token.trim()) newErrors.player_token = "Player Token is required";
         if (!formData.op_player_id.trim()) newErrors.op_player_id = "Operator Player ID is required";
-
         setErrors(newErrors);
-        // Возвращает true, если ошибок нет
         return Object.keys(newErrors).length === 0;
     };
 
-    // Генерация ссылки
     const handleGenerate = () => {
-        // 1. Сбрасываем предыдущий URL, чтобы перерисовать iframe при новом нажатии
         setGeneratedUrl(null);
-
-        // 2. Проверяем валидность
-        if (!validate()) {
-            return; // Прерываем, если есть ошибки
-        }
+        if (!validate()) return;
 
         const cleanBaseUrl = baseUrl.trim().replace(/\/$/, "");
-        
         const params = new URLSearchParams({
             round_id: formData.round_id,
             game: selectedGameId,
@@ -103,14 +81,17 @@ const RoundDetails = () => {
         });
 
         const fullUrl = `${cleanBaseUrl}/?${params.toString()}`;
-        
-        // Небольшой таймаут, чтобы React успел "сбросить" iframe (визуальный эффект перезагрузки)
-        setTimeout(() => {
-            setGeneratedUrl(fullUrl);
-        }, 50);
+        setGeneratedUrl(fullUrl);
     };
 
-    // Вспомогательная функция для классов инпута
+    const handleCopy = () => {
+        if (!generatedUrl) return;
+        navigator.clipboard.writeText(generatedUrl).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        });
+    };
+
     const getInputClass = (fieldName) => {
         const baseClass = "w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-offset-1 transition-colors";
         if (errors[fieldName]) {
@@ -122,14 +103,13 @@ const RoundDetails = () => {
     return (
         <div className="flex flex-col h-full space-y-6 max-w-7xl mx-auto w-full pb-10">
             <h1 className="text-3xl font-extrabold text-gray-900 text-center">
-                Round Details Viewer
+                Round Details Generator
             </h1>
 
-            {/* Блок настроек (Форма) */}
+            {/* Блок формы */}
             <div className="bg-white p-6 rounded-xl shadow-xl border border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     
-                    {/* 1. Base Domain URL (Region) */}
                     <div className="col-span-1 lg:col-span-3">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Base Domain URL (Region)</label>
                         <div className="flex gap-2">
@@ -145,7 +125,6 @@ const RoundDetails = () => {
                                 ))}
                                 <option value="custom">Custom...</option>
                             </select>
-                            
                             <input
                                 type="text"
                                 value={baseUrl}
@@ -156,7 +135,6 @@ const RoundDetails = () => {
                         </div>
                     </div>
 
-                    {/* 2. Game Selector */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Game</label>
                         <select
@@ -172,7 +150,6 @@ const RoundDetails = () => {
                         </select>
                     </div>
 
-                    {/* 3. Provider (Read Only) */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Provider Key</label>
                         <input
@@ -183,7 +160,6 @@ const RoundDetails = () => {
                         />
                     </div>
 
-                    {/* 4. Operator */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Operator Key</label>
                         <input
@@ -197,7 +173,6 @@ const RoundDetails = () => {
                         {errors.operator && <p className="text-red-500 text-xs mt-1">{errors.operator}</p>}
                     </div>
 
-                    {/* 5. Round ID */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Round ID</label>
                         <input
@@ -211,7 +186,6 @@ const RoundDetails = () => {
                          {errors.round_id && <p className="text-red-500 text-xs mt-1">{errors.round_id}</p>}
                     </div>
 
-                     {/* 6. Player Token */}
                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Player Token</label>
                         <input
@@ -225,7 +199,6 @@ const RoundDetails = () => {
                         {errors.player_token && <p className="text-red-500 text-xs mt-1">{errors.player_token}</p>}
                     </div>
 
-                    {/* 7. Operator Player ID */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Operator Player ID</label>
                         <input
@@ -240,44 +213,69 @@ const RoundDetails = () => {
                     </div>
                 </div>
 
-                <div className="flex justify-end mt-4">
+                <div className="flex justify-end border-t border-gray-100 pt-4">
                     <button
                         onClick={handleGenerate}
-                        className="px-6 py-2 bg-[#2e2691] text-white font-semibold rounded-lg shadow hover:bg-blue-800 transition transform hover:scale-[1.02] active:scale-95"
+                        className="px-6 py-3 bg-[#2e2691] text-white font-semibold rounded-lg shadow hover:bg-blue-800 transition transform hover:scale-[1.02] active:scale-95 flex items-center gap-2"
                     >
-                        Показать детали раунда
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        Сгенерировать ссылку
                     </button>
                 </div>
             </div>
 
-            {/* Блок результата (Iframe) */}
+            {/* Блок результата (БЕЗ IFRAME) */}
             {generatedUrl && (
-                <div className="flex flex-col bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden mx-auto w-[1080px] max-w-full">
-                    <div className="bg-gray-100 px-4 py-2 border-b border-gray-200 flex justify-between items-center shrink-0">
-                        <span className="text-xs text-gray-500 font-mono truncate mr-4">
-                            {generatedUrl}
-                        </span>
-                        <button 
-                            onClick={() => navigator.clipboard.writeText(generatedUrl)}
-                            className="text-xs text-[#2e2691] hover:underline font-semibold shrink-0"
-                        >
-                            Копировать ссылку
-                        </button>
+                <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-fade-in-up">
+                    <div className="bg-green-50 px-6 py-4 border-b border-green-100 flex items-center justify-between">
+                        <h3 className="text-lg font-bold text-green-800 flex items-center gap-2">
+                            ✅ Ссылка готова
+                        </h3>
                     </div>
-                    <iframe 
-                        src={generatedUrl}
-                        title="Round Details"
-                        className="w-full h-[666px] border-0"
-                        sandbox="allow-scripts allow-same-origin allow-forms"
-                    />
-                </div>
-            )}
-            
-            {!generatedUrl && (
-                <div className="flex items-center justify-center bg-gray-50 rounded-xl border border-dashed border-gray-300 text-gray-400 h-[400px]">
-                    <div className="text-center">
-                        <p>Заполните параметры и нажмите кнопку.</p>
-                        <p className="text-xs text-gray-300 mt-2">Если данные неверны, ошибка отобразится внутри окна просмотра.</p>
+                    
+                    <div className="p-6">
+                        <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 font-mono text-sm text-gray-700 break-all mb-6">
+                            {generatedUrl}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-4 justify-end">
+                            {/* Кнопка Копировать */}
+                            <button 
+                                onClick={handleCopy}
+                                className="flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 hover:text-[#2e2691] hover:border-[#2e2691] transition-all w-full sm:w-auto"
+                            >
+                                {isCopied ? (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        <span className="text-green-600">Скопировано</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                        <span>Копировать</span>
+                                    </>
+                                )}
+                            </button>
+
+                            {/* Кнопка Открыть */}
+                            <a 
+                                href={generatedUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 px-6 py-3 bg-[#2e2691] text-white font-bold rounded-lg hover:bg-blue-800 shadow-md transition-all w-full sm:w-auto no-underline"
+                            >
+                                <span>Открыть в новой вкладке</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                            </a>
+                        </div>
                     </div>
                 </div>
             )}
