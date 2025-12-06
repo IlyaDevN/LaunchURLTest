@@ -55,14 +55,47 @@ export const validateRoundDetailsUrl = (urlToValidate) => {
             if (key !== '') params[key] = value;
         });
 
-        // 2. Проверка Хоста (Региона)
+        // 2. Проверка Хоста (Региона) с Умными Подсказками
         const host = urlObject.host.toLowerCase();
+        
         if (!VALID_HOSTS.includes(host)) {
-            validationErrors.push(`Некорректный домен: "${host}". Ожидался один из доменов games-info (EU, APAC, SA, AF, HR или Stage).`);
+            let errorMsg = `Некорректный домен: "${host}".`;
+            let suggestion = "";
+
+            // Эвристика для определения намерения пользователя
+            // Проверка на APAC (ap vs apac)
+            if (host.includes("-ap") || host.includes(".ap.") || host.includes("asia")) {
+                suggestion = " Похоже на регион APAC. Правильный домен: games-info.apac.spribegaming.com";
+            } 
+            // Проверка на EU (часто пытаются написать games-info-eu)
+            else if (host.includes("-eu") || host.includes(".eu.")) {
+                suggestion = " Похоже на регион EU. Правильный домен: games-info.spribegaming.com";
+            }
+            // Проверка на AF
+            else if (host.includes("-af") || host.includes(".af.")) {
+                suggestion = " Похоже на регион AF (Africa). Правильный домен: games-info-af.spribegaming.com";
+            }
+            // Проверка на SA
+            else if (host.includes("-sa") || host.includes(".sa.") || host.includes("latam")) {
+                suggestion = " Похоже на регион SA (South America). Правильный домен: games-info-sa.spribegaming.com";
+            }
+            // Проверка на Stage (часто путают .com / .io / .dev)
+            else if (host.includes("staging") || host.includes("test")) {
+                suggestion = " Для стейджа правильный домен: games-info.staging.spribe.dev";
+            }
+
+            if (suggestion) {
+                // Если нашли догадку - выводим её
+                errorMsg += suggestion;
+            } else {
+                // Иначе стандартное сообщение
+                errorMsg += " Ожидался один из доменов games-info (EU, APAC, SA, AF, HR или Stage).";
+            }
+            
+            validationErrors.push(errorMsg);
         }
 
         // Подготавливаем объект компонентов
-        // В Round Details ID игры находится в параметре ?game=, а не в пути
         components = {
             protocol: urlObject.protocol,
             host: urlObject.host,
@@ -81,7 +114,7 @@ export const validateRoundDetailsUrl = (urlToValidate) => {
         }
     });
 
-    // 3.1 Проверка токена (может быть player_token ИЛИ session_token)
+    // 3.1 Проверка токена
     if (!params['player_token'] && !params['session_token']) {
         validationErrors.push(`Отсутствует токен игрока (ожидался "player_token" или "session_token")`);
     }
@@ -98,10 +131,8 @@ export const validateRoundDetailsUrl = (urlToValidate) => {
     const gameConfig = GAMES_MAPPING.find(g => g.id === gameId);
     
     if (!gameConfig) {
-        // Если игры нет в нашем списке, выдаем предупреждение, но не блокируем (вдруг новая игра)
         validationErrors.push(`Предупреждение: ID игры "${gameId}" не найден в справочнике валидатора.`);
     } else {
-        // Если игра известна, проверяем провайдера строго
         if (provider !== gameConfig.provider) {
             validationErrors.push(`Неверный provider для игры "${gameId}". Ожидался: "${gameConfig.provider}", получен: "${provider}"`);
         }
