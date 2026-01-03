@@ -17,11 +17,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         setShowJson(false); 
     }, [gameId, operator, validationType, analyzedHost]);
 
-    // ... (функции isStageEnvironment, getRegionInfo, getGeneralHostForLinks, getManagementLinks БЕЗ ИЗМЕНЕНИЙ) ...
-    // Для краткости я их свернул, так как они не менялись. Вставьте их сюда из вашего предыдущего файла.
-    
-    // Вставляем весь код вспомогательных функций (isStageEnvironment, getRegionInfo и т.д.)
-    // ...
+    // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
     const isStageEnvironment = () => {
         if (validationType === 'stageLaunchURLValidation') return true;
         if (validationType === 'roundDetailsValidation' && analyzedHost) {
@@ -57,20 +53,46 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
     };
 
     const getManagementLinks = () => {
-        if (isStage) return { clientArea: "https://clientarea.staging.spribe.dev", adminArea: "https://admin.staging.spribe.dev" };
+        if (isStage) return { 
+            clientArea: "https://clientarea.staging.spribe.dev", 
+            adminArea: "https://admin.staging.spribe.dev",
+            openSearch: null 
+        };
+
         const host = getGeneralHostForLinks(configData);
         const regionInfo = getRegionInfo(host);
+        
         let clientAreaUrl = "https://clientarea.spribegaming.com"; 
-        switch (regionInfo.code) {
-            case 'AF': clientAreaUrl = "https://clientarea-af.spribegaming.com"; break;
-            case 'APAC': clientAreaUrl = "https://clientarea-ap.spribegaming.com"; break;
-            case 'SA': clientAreaUrl = "https://clientarea-sa.spribegaming.com"; break;
-            case 'HR': clientAreaUrl = "https://clientarea-hr.spribegaming.com"; break;
-        }
-        return { clientArea: clientAreaUrl, adminArea: "https://admin.spribe.io" };
-    };
-    // ... конец вспомогательных функций
+        let openSearchUrl = null;
 
+        switch (regionInfo.code) {
+            case 'AF': 
+                clientAreaUrl = "https://clientarea-af.spribegaming.com"; 
+                openSearchUrl = "https://login.spribe.co/home/spribe_opensearchgameproviderprodafs1_1/0oamv28x6qud0KGcn417/alnmv2e4en2fjOq0u417";
+                break;
+            case 'APAC': 
+                clientAreaUrl = "https://clientarea-ap.spribegaming.com"; 
+                openSearchUrl = "https://login.spribe.co/home/spribe_opensearchgameproviderprodapac1_1/0oan20vt3gAD14xe0417/alnn210xxwAPR9mMw417";
+                break;
+            case 'SA': 
+                clientAreaUrl = "https://clientarea-sa.spribegaming.com"; 
+                openSearchUrl = "https://login.spribe.co/home/spribe_opensearchgameproviderprodsaest1_1/0oan2135ycaDYNsxy417/alnn21gafdEgawzBc417";
+                break;
+            case 'HR': 
+                clientAreaUrl = "https://clientarea-hr.spribegaming.com"; 
+                break;
+            case 'EU':
+                openSearchUrl = "https://login.spribe.co/home/spribe_opensearchgameproviderprodeuc1_1/0oamm3koxiTWi4fna417/alnmm3tuiqTybDTqd417";
+                break;
+        }
+
+        return { 
+            clientArea: clientAreaUrl, 
+            adminArea: "https://admin.spribe.io",
+            openSearch: openSearchUrl
+        };
+    };
+    
     const fetchConfig = useCallback(async () => {
         if (!gameId || !operator) return;
 
@@ -78,10 +100,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         setError(null);
         setConfigData(null);
 
-        // === НОВАЯ ЛОГИКА: ОПРЕДЕЛЕНИЕ ПУТИ ЧЕРЕЗ GAMES_CONFIG ===
-        let urlGamePath = gameId; // По умолчанию путь равен ID игры (aviator -> aviator)
-        
-        // Ищем игру в конфиге
+        let urlGamePath = gameId; 
         const gameInfo = GAMES_CONFIG.find(g => g.id === gameId);
         
         if (gameInfo) {
@@ -90,7 +109,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
             } else if (gameInfo.category === 'slots') {
                 urlGamePath = 'slots';
             }
-            // Если crash или multiplayer, путь остается равным gameId
         }
 
         let baseUrl;
@@ -137,7 +155,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         fetchConfig();
     }, [fetchConfig]);
 
-    // === УНИВЕРСАЛЬНЫЙ РЕНДЕР ДАННЫХ ИГРЫ (без изменений) ===
     const renderGameData = () => {
         let host = "-";
         let zone = "-";
@@ -180,13 +197,14 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                 {!isGameFound && isFallbackData && (
                     <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg mb-4 text-sm">
                         ⚠️ Настройки для <strong>{gameId}</strong> отсутствуют! <strong>Возможно игра не включена для данного оператора.</strong>
-                        <br/>Ниже показаны параметры региона на основе других игр.
+                        <br/>
+                        Ниже показаны параметры региона на основе других игр из конфигурации оператора.
                     </div>
                 )}
                 
                 {!isGameFound && !isFallbackData && (
                     <div className="p-4 bg-red-50 text-red-800 border border-red-200 rounded-lg mb-4 text-sm">
-                        ❌ Игра <strong>{gameId}</strong> не найдена, и нет данных других игр.
+                        ❌ Игра <strong>{gameId}</strong> не найдена, и нет данных других игр для определения региона.
                     </div>
                 )}
 
@@ -252,16 +270,37 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
 
                         {(() => {
                             const links = getManagementLinks();
+                            const gridColsClass = links.openSearch 
+                                ? "grid-cols-1 sm:grid-cols-3" 
+                                : "grid-cols-1 sm:grid-cols-2";
+
                             return (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                                <div className={`grid ${gridColsClass} gap-4 mb-6`}>
+                                    
                                     <a href={links.clientArea} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 font-bold hover:bg-indigo-100 hover:shadow-md transition-all group">
                                         <span>👤 Client Area</span>
                                         <svg className="w-4 h-4 text-indigo-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                                     </a>
+
                                     <a href={links.adminArea} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-[#990000] font-bold hover:bg-red-100 hover:shadow-md transition-all group">
                                         <span>🛠️ Admin Area</span>
                                         <svg className="w-4 h-4 text-red-400 group-hover:text-[#990000]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                                     </a>
+
+                                    {links.openSearch && (
+                                        <a href={links.openSearch} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 px-4 py-3 bg-teal-50 border border-teal-200 rounded-lg text-teal-700 font-bold hover:bg-teal-100 hover:shadow-md transition-all group">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" className="w-6 h-6 shrink-0">
+                                                <path fill="#00A3E0" d="M61.74 23.5a2.26 2.26 0 0 0-2.27 2.26 33.71 33.71 0 0 1-33.7 33.71 2.26 2.26 0 1 0 0 4.53A38.24 38.24 0 0 0 64 25.76a2.26 2.26 0 0 0-2.26-2.26Z"/>
+                                                <path fill="#00A3E0" d="M3.92 14A24.43 24.43 0 0 0 .05 28.9c.86 13.73 13.3 24.14 25.03 23.02 4.6-.45 9.31-4.2 8.9-10.9-.19-2.92-1.62-4.64-3.93-5.96C27.84 33.8 25 33 21.79 32.1c-3.89-1.1-8.4-2.32-11.85-4.87-4.15-3.06-6.99-6.6-6.02-13.23Z"/>
+                                                <path fill="#B9D9EB" d="M48.08 38a24.43 24.43 0 0 0 3.87-14.9C51.09 9.36 38.65-1.05 26.92.07c-4.6.45-9.31 4.2-8.9 10.9.19 2.92 1.62 4.64 3.93 5.96C24.16 18.2 27 19 30.21 19.9c3.89 1.1 8.4 2.32 11.85 4.87 4.15 3.06 6.99 6.6 6.02 13.23Z"/>
+                                            </svg>
+                                            
+                                            <span>Opensearch</span>
+                                            
+                                            {/* Убран ml-auto, теперь центрирование корректное */}
+                                            <svg className="w-4 h-4 text-teal-400 group-hover:text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                                        </a>
+                                    )}
                                 </div>
                             );
                         })()}
