@@ -53,14 +53,22 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
     };
 
     const getManagementLinks = () => {
-        if (isStage) return { 
-            clientArea: "https://clientarea.staging.spribe.dev", 
-            adminArea: "https://admin.staging.spribe.dev",
-            openSearch: null 
-        };
-
+        // Получаем хост и регион СРАЗУ, чтобы проверить на STAGE EU
         const host = getGeneralHostForLinks(configData);
         const regionInfo = getRegionInfo(host);
+
+        if (isStage) {
+            // Проверяем: если это Stage и регион STAGE EU, даем ссылку на Kibana
+            const stageOpenSearch = (regionInfo.code === 'STAGE EU') 
+                ? "https://kibana-logserver1.spribe.io/" 
+                : null;
+
+            return { 
+                clientArea: "https://clientarea.staging.spribe.dev", 
+                adminArea: "https://admin.staging.spribe.dev",
+                openSearch: stageOpenSearch 
+            };
+        }
         
         let clientAreaUrl = "https://clientarea.spribegaming.com"; 
         let openSearchUrl = null;
