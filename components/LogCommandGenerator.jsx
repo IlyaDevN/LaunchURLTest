@@ -56,7 +56,6 @@ const getInitialTimeState = () => {
     };
 };
 
-// === ИЗМЕНЕНИЕ: Добавлен проп region ===
 const LogCommandGenerator = ({ payload, host, region }) => {
     const [copiedId, setCopiedId] = useState(null);
 
@@ -95,14 +94,13 @@ const LogCommandGenerator = ({ payload, host, region }) => {
 
     // === ЛОГИКА ОПРЕДЕЛЕНИЯ РЕГИОНА ===
     const detectedRegion = useMemo(() => {
-        // 1. Приоритет: Регион, переданный из OperatorConfigViewer
+        // 1. Приоритет: Регион из OperatorConfigViewer
         if (region && region !== "UNKNOWN") {
-            // OperatorConfigViewer может вернуть "STAGE EU", приводим к "STAGE"
             if (region === "STAGE EU") return "STAGE";
             return region;
         }
 
-        // 2. Фоллбек: Определение по хосту (если конфиг еще не загружен или не найден)
+        // 2. Фоллбек: По хосту
         if (!host) return "EU";
         const h = host.toLowerCase();
         if (h.includes("staging") || h.includes("spribe.dev") || h.includes("kibana")) return "STAGE";
@@ -333,6 +331,17 @@ const LogCommandGenerator = ({ payload, host, region }) => {
                 {/* ВАРИАНТ А: OpenSearch Link */}
                 {activeTab === "os" && (
                     <div className="animate-fade-in space-y-4">
+                        
+                        {/* === ИЗМЕНЕНИЕ: Добавлено предупреждение === */}
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3 shadow-sm">
+                            <span className="text-xl">🔒</span>
+                            <div className="text-xs text-yellow-800 leading-snug">
+                                <strong className="font-bold">Внимание:</strong> Перед поиском необходимо авторизоваться в OpenSearch. 
+                                <br/>
+                                Ссылку для входа можно найти выше в блоке <strong>&quot;Конфигурация оператора&quot;</strong>.
+                            </div>
+                        </div>
+
                         <div className="bg-teal-50 border border-teal-200 rounded-xl p-8 text-center shadow-sm flex flex-col items-center">
                             <div className="text-sm text-teal-700 mb-6">
                                 <div className="mb-2">Поисковый запрос для <strong className="text-teal-900">{currentServicesList[osService]?.label}</strong>:</div>
