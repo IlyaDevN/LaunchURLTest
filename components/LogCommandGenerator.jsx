@@ -56,7 +56,8 @@ const getInitialTimeState = () => {
     };
 };
 
-const LogCommandGenerator = ({ payload, host }) => {
+// === ИЗМЕНЕНИЕ: Добавлен проп region ===
+const LogCommandGenerator = ({ payload, host, region }) => {
     const [copiedId, setCopiedId] = useState(null);
 
     const token = payload?.token || payload?.player_token || payload?.session_token || "TOKEN_NOT_FOUND";
@@ -92,15 +93,25 @@ const LogCommandGenerator = ({ payload, host }) => {
         setEditedCommands({});
     }, [payload, searchType, token, user, operator]);
 
+    // === ЛОГИКА ОПРЕДЕЛЕНИЯ РЕГИОНА ===
     const detectedRegion = useMemo(() => {
+        // 1. Приоритет: Регион, переданный из OperatorConfigViewer
+        if (region && region !== "UNKNOWN") {
+            // OperatorConfigViewer может вернуть "STAGE EU", приводим к "STAGE"
+            if (region === "STAGE EU") return "STAGE";
+            return region;
+        }
+
+        // 2. Фоллбек: Определение по хосту (если конфиг еще не загружен или не найден)
         if (!host) return "EU";
         const h = host.toLowerCase();
         if (h.includes("staging") || h.includes("spribe.dev") || h.includes("kibana")) return "STAGE";
         if (h.includes("apac") || h.includes("ap-east-1")) return "APAC";
         if (h.includes("af-south-1")) return "AF";
         if (h.includes("sa-east-1")) return "SA";
+        
         return "EU";
-    }, [host]);
+    }, [host, region]);
 
     const currentServicesList = detectedRegion === "STAGE" ? STAGE_SERVICES : PROD_SERVICES;
 
@@ -115,8 +126,6 @@ const LogCommandGenerator = ({ payload, host }) => {
         if (!selectedDate) return null;
 
         const [yyyy, mm, dd] = selectedDate.split('-').map(Number);
-
-        // Создаем "сырую" дату в UTC на основе введенных цифр
         const startBase = new Date(Date.UTC(yyyy, mm - 1, dd, +fromHour, +fromMinute, +fromSecond, +fromMs));
         const endBase = new Date(Date.UTC(yyyy, mm - 1, dd, +toHour, +toMinute, +toSecond, +toMs));
 
@@ -328,7 +337,6 @@ const LogCommandGenerator = ({ payload, host }) => {
                             <div className="text-sm text-teal-700 mb-6">
                                 <div className="mb-2">Поисковый запрос для <strong className="text-teal-900">{currentServicesList[osService]?.label}</strong>:</div>
                                 <code className="bg-white border border-teal-200 px-3 py-1.5 rounded text-teal-800 font-mono text-xs shadow-sm">
-                                    {/* ИСПРАВЛЕНО: Экранированы кавычки &quot; */}
                                     message:&quot;{searchTerm}&quot;
                                 </code>
                             </div>

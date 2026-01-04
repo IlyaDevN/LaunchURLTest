@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 // Импортируем общий конфиг
 import { GAMES_CONFIG } from "../staticData/games.js";
 
-const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }) => {
+const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, onRegionDetected }) => {
     const [configData, setConfigData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -15,10 +15,10 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         setError(null);
         setFetchedUrl(null);
         setShowJson(false); 
+        // Не сбрасываем регион здесь, это делает родитель
     }, [gameId, operator, validationType, analyzedHost]);
 
     // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
-    // Оборачиваем в useCallback, чтобы использовать как зависимость
     const isStageEnvironment = useCallback(() => {
         if (validationType === 'stageLaunchURLValidation') return true;
         if (validationType === 'roundDetailsValidation' && analyzedHost) {
@@ -29,6 +29,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
 
     const isStage = isStageEnvironment();
 
+    // Функция определения региона вынесена, чтобы можно было использовать внутри fetchConfig
     const getRegionInfo = (host) => {
         if (!host || host === "-") return { code: "UNKNOWN", color: "bg-gray-100 text-gray-600" };
         const h = host.toLowerCase();
@@ -104,13 +105,8 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
 
         let urlGamePath = gameId; 
         const gameInfo = GAMES_CONFIG.find(g => g.id === gameId);
-        
-        if (gameInfo) {
-            if (gameInfo.category === 'turbo') {
-                urlGamePath = 'turbo';
-            } else if (gameInfo.category === 'slots') {
-                urlGamePath = 'slots';
-            }
+        if (gameInfo && (gameInfo.category === 'turbo' || gameInfo.category === 'slots')) {
+            urlGamePath = gameInfo.category;
         }
 
         let baseUrl;
@@ -137,6 +133,11 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                         const data = await fallbackResponse.json();
                         setConfigData(data);
                         setFetchedUrl(fallbackUrl);
+                        
+                        // === ВАЖНО: Уведомляем родителя о найденном регионе ===
+                        const host = getGeneralHostForLinks(data);
+                        const regionInfo = getRegionInfo(host);
+                        if (onRegionDetected) onRegionDetected(regionInfo.code);
                         return;
                     }
                 }
@@ -145,13 +146,19 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
 
             const data = await response.json();
             setConfigData(data);
+
+            // === ВАЖНО: Уведомляем родителя о найденном регионе ===
+            const host = getGeneralHostForLinks(data);
+            const regionInfo = getRegionInfo(host);
+            if (onRegionDetected) onRegionDetected(regionInfo.code);
+
         } catch (err) {
             console.error(err);
             setError(`Не удалось загрузить конфиг.\nURL: ${url}\nДетали: ${err.message}`);
         } finally {
             setLoading(false);
         }
-    }, [gameId, operator, isStageEnvironment]); // Добавлена зависимость isStageEnvironment
+    }, [gameId, operator, isStageEnvironment, onRegionDetected]);
 
     useEffect(() => {
         fetchConfig();
@@ -299,7 +306,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
                                             
                                             <span>Opensearch</span>
                                             
-                                            {/* Убран ml-auto, теперь центрирование корректное */}
                                             <svg className="w-4 h-4 text-teal-400 group-hover:text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                                         </a>
                                     )}
