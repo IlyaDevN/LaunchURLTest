@@ -317,9 +317,12 @@ const UrlCheckerForm = () => {
                         analyzedHost={parsedParams.host} 
                     />
 
-                    {/* БЛОК ГЕНЕРАЦИИ КОМАНД (Выводится, если есть токен или юзер) */}
+                    {/* БЛОК ГЕНЕРАЦИИ КОМАНД */}
                     {parsedParams.payload && (
-                        <LogCommandGenerator payload={parsedParams.payload} />
+                        <LogCommandGenerator 
+                            payload={parsedParams.payload} 
+                            host={parsedParams.host} // Передаем хост для определения региона OpenSearch
+                        />
                     )}
                 </>
             )}
