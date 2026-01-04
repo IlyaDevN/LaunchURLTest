@@ -18,13 +18,15 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
     }, [gameId, operator, validationType, analyzedHost]);
 
     // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
-    const isStageEnvironment = () => {
+    // Оборачиваем в useCallback, чтобы использовать как зависимость
+    const isStageEnvironment = useCallback(() => {
         if (validationType === 'stageLaunchURLValidation') return true;
         if (validationType === 'roundDetailsValidation' && analyzedHost) {
             if (analyzedHost.includes('staging') || analyzedHost.includes('spribe.dev')) return true;
         }
         return false;
-    };
+    }, [validationType, analyzedHost]);
+
     const isStage = isStageEnvironment();
 
     const getRegionInfo = (host) => {
@@ -53,22 +55,14 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
     };
 
     const getManagementLinks = () => {
-        // Получаем хост и регион СРАЗУ, чтобы проверить на STAGE EU
+        if (isStage) return { 
+            clientArea: "https://clientarea.staging.spribe.dev", 
+            adminArea: "https://admin.staging.spribe.dev",
+            openSearch: null 
+        };
+
         const host = getGeneralHostForLinks(configData);
         const regionInfo = getRegionInfo(host);
-
-        if (isStage) {
-            // Проверяем: если это Stage и регион STAGE EU, даем ссылку на Kibana
-            const stageOpenSearch = (regionInfo.code === 'STAGE EU') 
-                ? "https://kibana-logserver1.spribe.io/" 
-                : null;
-
-            return { 
-                clientArea: "https://clientarea.staging.spribe.dev", 
-                adminArea: "https://admin.staging.spribe.dev",
-                openSearch: stageOpenSearch 
-            };
-        }
         
         let clientAreaUrl = "https://clientarea.spribegaming.com"; 
         let openSearchUrl = null;
@@ -157,7 +151,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost }
         } finally {
             setLoading(false);
         }
-    }, [gameId, operator, validationType, analyzedHost]);
+    }, [gameId, operator, isStageEnvironment]); // Добавлена зависимость isStageEnvironment
 
     useEffect(() => {
         fetchConfig();

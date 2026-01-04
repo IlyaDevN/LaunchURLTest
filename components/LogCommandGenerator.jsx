@@ -41,20 +41,18 @@ const getKyivOffset = (date) => {
     return (date >= lastSunMarch && date < lastSunOct) ? 3 : 2;
 };
 
-// Инициализация времени (ТЕКУЩИЙ ЧАС)
 const getInitialTimeState = () => {
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
     
-    // === ИЗМЕНЕНИЕ: Берем текущий час, а не предыдущий ===
     const currentHour = now.getHours();
-    const currentHourStr = String(currentHour).padStart(2, '0');
+    const prevHourStr = String(currentHour).padStart(2, '0');
 
     return {
         date: `${yyyy}-${mm}-${dd}`,
-        hour: currentHourStr
+        hour: prevHourStr
     };
 };
 
@@ -87,22 +85,6 @@ const LogCommandGenerator = ({ payload, host }) => {
     const [toSecond, setToSecond] = useState('59');
     const [toMs, setToMs] = useState('999');
 
-    // Обновляем время при монтировании (на всякий случай для актуализации)
-    useEffect(() => {
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        
-        // === ИЗМЕНЕНИЕ: Используем текущий час ===
-        const currentHour = now.getHours();
-        const currentHourStr = String(currentHour).padStart(2, '0');
-
-        setSelectedDate(`${yyyy}-${mm}-${dd}`);
-        setFromHour(currentHourStr); setFromMinute("00"); setFromSecond("00"); setFromMs("000");
-        setToHour(currentHourStr); setToMinute("59"); setToSecond("59"); setToMs("999");
-    }, []);
-
     useEffect(() => {
         if (searchType === 'token') setSearchTerm(token);
         else if (searchType === 'user') setSearchTerm(user);
@@ -128,7 +110,7 @@ const LogCommandGenerator = ({ payload, host }) => {
         }
     }, [detectedRegion, currentServicesList, osService]);
 
-    // === РАСЧЕТ ВРЕМЕНИ (UTC CALCULATOR) ===
+    // === РАСЧЕТ ВРЕМЕНИ ===
     const calculateUtcTime = () => {
         if (!selectedDate) return null;
 
@@ -139,14 +121,12 @@ const LogCommandGenerator = ({ payload, host }) => {
         const endBase = new Date(Date.UTC(yyyy, mm - 1, dd, +toHour, +toMinute, +toSecond, +toMs));
 
         if (timeZoneMode === "KYIV") {
-            // KYIV MODE: Отнимаем смещение, чтобы получить UTC
             const offsetStart = getKyivOffset(startBase);
             const offsetEnd = getKyivOffset(endBase);
 
             startBase.setUTCHours(startBase.getUTCHours() - offsetStart);
             endBase.setUTCHours(endBase.getUTCHours() - offsetEnd);
         }
-        // UTC MODE: Оставляем как есть (т.е. считаем ввод уже в UTC)
 
         return { start: startBase, end: endBase };
     };
@@ -348,7 +328,8 @@ const LogCommandGenerator = ({ payload, host }) => {
                             <div className="text-sm text-teal-700 mb-6">
                                 <div className="mb-2">Поисковый запрос для <strong className="text-teal-900">{currentServicesList[osService]?.label}</strong>:</div>
                                 <code className="bg-white border border-teal-200 px-3 py-1.5 rounded text-teal-800 font-mono text-xs shadow-sm">
-                                    message:"{searchTerm}"
+                                    {/* ИСПРАВЛЕНО: Экранированы кавычки &quot; */}
+                                    message:&quot;{searchTerm}&quot;
                                 </code>
                             </div>
                             
