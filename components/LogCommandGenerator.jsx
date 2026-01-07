@@ -12,7 +12,8 @@ const OS_URLS = {
 
 // === 2. КОНФИГУРАЦИЯ СЕРВИСОВ (Index Patterns) ===
 const PROD_SERVICES = {
-    sc: { label: "Core Service (CS)", id: "spribe-operator-service-app" },
+    // === ИСПРАВЛЕНО: ID для Core Service был неверным ===
+    sc: { label: "Core Service (CS)", id: "spribe-core-service-app" }, 
     et: { label: "Engagement Tools (ET)", id: "engagement-tools-app" },
     os: { label: "Operator Service (OS)", id: "spribe-operator-service-app" }
 };
@@ -332,7 +333,7 @@ const LogCommandGenerator = ({ payload, host, region }) => {
                 {activeTab === "os" && (
                     <div className="animate-fade-in space-y-4">
                         
-                        {/* === ИЗМЕНЕНИЕ: Добавлено предупреждение === */}
+                        {/* ПРЕДУПРЕЖДЕНИЕ */}
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3 shadow-sm">
                             <span className="text-xl">🔒</span>
                             <div className="text-xs text-yellow-800 leading-snug">
