@@ -12,7 +12,6 @@ const OS_URLS = {
 
 // === 2. КОНФИГУРАЦИЯ СЕРВИСОВ (Index Patterns) ===
 const PROD_SERVICES = {
-    // === ИСПРАВЛЕНО: ID для Core Service был неверным ===
     sc: { label: "Core Service (CS)", id: "spribe-core-service-app" }, 
     et: { label: "Engagement Tools (ET)", id: "engagement-tools-app" },
     os: { label: "Operator Service (OS)", id: "spribe-operator-service-app" }
@@ -49,11 +48,11 @@ const getInitialTimeState = () => {
     const dd = String(now.getDate()).padStart(2, '0');
     
     const currentHour = now.getHours();
-    const prevHourStr = String(currentHour).padStart(2, '0');
+    const currentHourStr = String(currentHour).padStart(2, '0');
 
     return {
         date: `${yyyy}-${mm}-${dd}`,
-        hour: prevHourStr
+        hour: currentHourStr
     };
 };
 
@@ -75,7 +74,11 @@ const LogCommandGenerator = ({ payload, host, region }) => {
 
     // === TIME STATE ===
     const initialTime = getInitialTimeState();
-    const [selectedDate, setSelectedDate] = useState(initialTime.date);
+    
+    // ИЗМЕНЕНИЕ: Теперь у нас две даты - Start и End
+    const [startDate, setStartDate] = useState(initialTime.date);
+    const [endDate, setEndDate] = useState(initialTime.date);
+
     const [fromHour, setFromHour] = useState(initialTime.hour);
     const [fromMinute, setFromMinute] = useState('00');
     const [fromSecond, setFromSecond] = useState('00');
@@ -95,20 +98,16 @@ const LogCommandGenerator = ({ payload, host, region }) => {
 
     // === ЛОГИКА ОПРЕДЕЛЕНИЯ РЕГИОНА ===
     const detectedRegion = useMemo(() => {
-        // 1. Приоритет: Регион из OperatorConfigViewer
         if (region && region !== "UNKNOWN") {
             if (region === "STAGE EU") return "STAGE";
             return region;
         }
-
-        // 2. Фоллбек: По хосту
         if (!host) return "EU";
         const h = host.toLowerCase();
         if (h.includes("staging") || h.includes("spribe.dev") || h.includes("kibana")) return "STAGE";
         if (h.includes("apac") || h.includes("ap-east-1")) return "APAC";
         if (h.includes("af-south-1")) return "AF";
         if (h.includes("sa-east-1")) return "SA";
-        
         return "EU";
     }, [host, region]);
 
@@ -122,11 +121,14 @@ const LogCommandGenerator = ({ payload, host, region }) => {
 
     // === РАСЧЕТ ВРЕМЕНИ ===
     const calculateUtcTime = () => {
-        if (!selectedDate) return null;
+        if (!startDate || !endDate) return null;
 
-        const [yyyy, mm, dd] = selectedDate.split('-').map(Number);
-        const startBase = new Date(Date.UTC(yyyy, mm - 1, dd, +fromHour, +fromMinute, +fromSecond, +fromMs));
-        const endBase = new Date(Date.UTC(yyyy, mm - 1, dd, +toHour, +toMinute, +toSecond, +toMs));
+        const [startYYYY, startMM, startDD] = startDate.split('-').map(Number);
+        const [endYYYY, endMM, endDD] = endDate.split('-').map(Number);
+
+        // Создаем даты
+        const startBase = new Date(Date.UTC(startYYYY, startMM - 1, startDD, +fromHour, +fromMinute, +fromSecond, +fromMs));
+        const endBase = new Date(Date.UTC(endYYYY, endMM - 1, endDD, +toHour, +toMinute, +toSecond, +toMs));
 
         if (timeZoneMode === "KYIV") {
             const offsetStart = getKyivOffset(startBase);
@@ -177,23 +179,33 @@ const LogCommandGenerator = ({ payload, host, region }) => {
         const startTimeStr = start.toISOString().replace('T', ' ').replace('Z', '');
         const endTimeStr = end.toISOString().replace('T', ' ').replace('Z', '');
 
+        // Для имени файла берем дату старта (обычно ищут в рамках одного дня или начала диапазона)
         const fileDate = start.toISOString().split('T')[0];
         const startH = String(start.getUTCHours()).padStart(2, '0');
         const endH = String(end.getUTCHours()).padStart(2, '0');
 
-        let fileHourPart = "";
-        if (startH === endH) {
-            fileHourPart = startH;
-        } else if (parseInt(endH) === parseInt(startH) + 1 && end.getUTCMinutes() === 0) {
-            fileHourPart = startH;
+        // Проверка: Если диапазон дат разный, то grep по одному файлу не сработает корректно для всего диапазона
+        const isSameDay = start.toISOString().split('T')[0] === end.toISOString().split('T')[0];
+        
+        let fileTarget;
+        if (isSameDay) {
+            let fileHourPart = "";
+            if (startH === endH) {
+                fileHourPart = startH;
+            } else if (parseInt(endH) === parseInt(startH) + 1 && end.getUTCMinutes() === 0) {
+                fileHourPart = startH;
+            } else {
+                fileHourPart = `{${startH},${endH}}`;
+            }
+            fileTarget = `${filename}.${fileDate}-${fileHourPart}.gz`;
         } else {
-            fileHourPart = `{${startH},${endH}}`;
+            // Если диапазон между днями, предлагаем wildcard по дате старта (или можно усложнить)
+            fileTarget = `${filename}.${fileDate}-*.gz (Warning: Multi-day range)`;
         }
-        const fileTarget = `${filename}.${fileDate}-${fileHourPart}.gz`;
 
         return [
             { label: "Текущий лог (Live)", desc: `Поиск в активном файле`, cmd: `grep "${searchTerm}" ${filename}` },
-            { label: "Точный диапазон (AWK)", desc: `По UTC: с ${startTimeStr.split(' ')[1]} по ${endTimeStr.split(' ')[1]}`, cmd: `zcat ${fileTarget} | awk '$0 >= "${startTimeStr}" && $0 <= "${endTimeStr}"' | grep "${searchTerm}"` },
+            { label: "Точный диапазон (AWK)", desc: `По UTC: с ${startTimeStr} по ${endTimeStr}`, cmd: `zcat ${fileTarget} | awk '$0 >= "${startTimeStr}" && $0 <= "${endTimeStr}"' | grep "${searchTerm}"` },
             { label: "Конкретный час (Архив)", desc: `Файл за ${fileDate} ${startH}:00 UTC`, cmd: `zgrep "${searchTerm}" ${filename}.${fileDate}-${startH}.gz` },
             { label: "Все архивы за день", desc: `Все файлы за ${fileDate} (UTC)`, cmd: `zgrep "${searchTerm}" ${filename}.${fileDate}-*` }
         ];
@@ -286,33 +298,37 @@ const LogCommandGenerator = ({ payload, host, region }) => {
             )}
 
             {/* 3. ВЫБОР ВРЕМЕНИ */}
-            <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row flex-wrap items-center gap-4 text-sm justify-center sm:justify-start">
-                <div className="flex items-center gap-2">
-                    <span className="font-bold text-gray-600">Дата:</span>
-                    <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="px-2 py-1 border border-gray-300 rounded text-gray-700 h-8 focus:ring-2 focus:ring-[#2e2691] focus:outline-none"/>
-                </div>
+            <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex flex-col xl:flex-row flex-wrap items-center gap-4 text-sm justify-center xl:justify-start">
                 
-                <div className="flex items-center gap-2">
-                    <span className="font-bold text-gray-600">C:</span>
+                {/* Блок "C" */}
+                <div className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-gray-200 shadow-sm">
+                    <span className="font-bold text-gray-500 text-xs">С:</span>
+                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="px-1 py-1 border border-gray-300 rounded text-gray-700 h-7 text-xs focus:ring-1 focus:ring-[#2e2691] focus:outline-none"/>
+                    
                     <div className="flex gap-0.5 items-center">
                         <select value={fromHour} onChange={(e) => setFromHour(e.target.value)} className="time-select rounded-l-md">{hours.map(h => <option key={h} value={h}>{h}</option>)}</select>
                         <span className="text-gray-400">:</span>
                         <select value={fromMinute} onChange={(e) => setFromMinute(e.target.value)} className="time-select">{minutes.map(m => <option key={m} value={m}>{m}</option>)}</select>
                         <span className="text-gray-400">:</span>
                         <select value={fromSecond} onChange={(e) => setFromSecond(e.target.value)} className="time-select">{seconds.map(s => <option key={s} value={s}>{s}</option>)}</select>
-                        <input type="text" value={fromMs} onChange={(e) => handleMsChange(setFromMs, e.target.value)} placeholder="000" className="w-9 px-1 border border-gray-300 rounded-r-md text-center text-xs h-8 focus:ring-2 focus:ring-[#2e2691] focus:outline-none"/>
+                        <input type="text" value={fromMs} onChange={(e) => handleMsChange(setFromMs, e.target.value)} placeholder="000" className="w-8 px-1 border border-gray-300 rounded-r-md text-center text-xs h-7 focus:ring-1 focus:ring-[#2e2691] focus:outline-none"/>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                    <span className="font-bold text-gray-600">По:</span>
+                <span className="text-gray-400 hidden xl:block">→</span>
+
+                {/* Блок "ПО" */}
+                <div className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-gray-200 shadow-sm">
+                    <span className="font-bold text-gray-500 text-xs">ПО:</span>
+                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="px-1 py-1 border border-gray-300 rounded text-gray-700 h-7 text-xs focus:ring-1 focus:ring-[#2e2691] focus:outline-none"/>
+                    
                     <div className="flex gap-0.5 items-center">
                         <select value={toHour} onChange={(e) => setToHour(e.target.value)} className="time-select rounded-l-md">{hours.map(h => <option key={h} value={h}>{h}</option>)}</select>
                         <span className="text-gray-400">:</span>
                         <select value={toMinute} onChange={(e) => setToMinute(e.target.value)} className="time-select">{minutes.map(m => <option key={m} value={m}>{m}</option>)}</select>
                         <span className="text-gray-400">:</span>
                         <select value={toSecond} onChange={(e) => setToSecond(e.target.value)} className="time-select">{seconds.map(s => <option key={s} value={s}>{s}</option>)}</select>
-                        <input type="text" value={toMs} onChange={(e) => handleMsChange(setToMs, e.target.value)} placeholder="999" className="w-9 px-1 border border-gray-300 rounded-r-md text-center text-xs h-8 focus:ring-2 focus:ring-[#2e2691] focus:outline-none"/>
+                        <input type="text" value={toMs} onChange={(e) => handleMsChange(setToMs, e.target.value)} placeholder="999" className="w-8 px-1 border border-gray-300 rounded-r-md text-center text-xs h-7 focus:ring-1 focus:ring-[#2e2691] focus:outline-none"/>
                     </div>
                 </div>
                 
@@ -323,7 +339,7 @@ const LogCommandGenerator = ({ payload, host, region }) => {
                     </div>
                 )}
 
-                <style jsx>{`.time-select {@apply px-0.5 py-1 border border-gray-300 text-gray-700 h-8 text-xs appearance-none text-center min-w-[2.5rem] focus:ring-2 focus:ring-[#2e2691] focus:outline-none bg-white;}`}</style>
+                <style jsx>{`.time-select {@apply px-0.5 py-1 border border-gray-300 text-gray-700 h-7 text-xs appearance-none text-center min-w-[2.2rem] focus:ring-1 focus:ring-[#2e2691] focus:outline-none bg-white;}`}</style>
             </div>
 
             {/* 4. КОНТЕНТ */}
@@ -333,7 +349,6 @@ const LogCommandGenerator = ({ payload, host, region }) => {
                 {activeTab === "os" && (
                     <div className="animate-fade-in space-y-4">
                         
-                        {/* ПРЕДУПРЕЖДЕНИЕ */}
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3 shadow-sm">
                             <span className="text-xl">🔒</span>
                             <div className="text-xs text-yellow-800 leading-snug">
