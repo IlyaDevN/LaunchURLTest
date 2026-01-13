@@ -21,3 +21,34 @@ export const ROUND_DETAILS_PARAMS = [
   "player_token",
   "op_player_id"
 ];
+
+export const SG_DIGITAL_PARAMS = [
+    "nogsgameid",
+    "nogsoperatorid",
+    "nogscurrency",
+    "nogslang",
+    "accountid",
+    "nogsmode",
+    "device",
+    "lobbyurl",
+    "jurisdiction",
+    "sessionid",
+    "ticket",
+    "clienttype",
+    "winloss",
+    "elapsedtime",
+    "domain",
+    "iframemode",
+    "depositurl",
+    "gameUrl",
+    "gameName",
+    "exitUrl",
+    "showhome",
+    "playslot",
+    "operatorid",
+    "gameid",
+    "currency",
+    "lang",
+    "mode",
+    "ogsgameid"
+];

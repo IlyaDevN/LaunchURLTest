@@ -15,21 +15,22 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         setError(null);
         setFetchedUrl(null);
         setShowJson(false); 
-        // Не сбрасываем регион здесь, это делает родитель
     }, [gameId, operator, validationType, analyzedHost]);
 
     // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
     const isStageEnvironment = useCallback(() => {
         if (validationType === 'stageLaunchURLValidation') return true;
         if (validationType === 'roundDetailsValidation' && analyzedHost) {
-            if (analyzedHost.includes('staging') || analyzedHost.includes('spribe.dev')) return true;
+            if (analyzedHost.includes('staging') || analyzedHost.includes('spribe.dev') || analyzedHost.includes('spribe.io')) return true;
         }
+        // Доп. проверка для dev-test.spribe.io (это тоже Stage)
+        if (analyzedHost && (analyzedHost.includes('dev-test') || analyzedHost.includes('stage'))) return true;
+        
         return false;
     }, [validationType, analyzedHost]);
 
     const isStage = isStageEnvironment();
 
-    // Функция определения региона вынесена, чтобы можно было использовать внутри fetchConfig
     const getRegionInfo = (host) => {
         if (!host || host === "-") return { code: "UNKNOWN", color: "bg-gray-100 text-gray-600" };
         const h = host.toLowerCase();
@@ -39,7 +40,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         if (h.includes("apac") || h.includes("ap-east-1") || h.includes("ap-southeast-1")) return { code: "APAC", color: "bg-red-100 text-red-800" };
         if (h.includes("sa-east-1")) return { code: "SA", color: "bg-green-100 text-green-800" };
         if (h.includes("app-hr1")) return { code: "HR", color: "bg-purple-100 text-purple-800" };
-        if (h.includes("staging")) return { code: "STAGE", color: "bg-yellow-100 text-yellow-800" };
+        if (h.includes("staging") || h.includes("dev-test")) return { code: "STAGE", color: "bg-yellow-100 text-yellow-800" };
         return { code: "CUSTOM / UNKNOWN", color: "bg-gray-100 text-gray-800" };
     };
 
@@ -56,10 +57,11 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
     };
 
     const getManagementLinks = () => {
+        // === ИСПРАВЛЕНИЕ: Добавлена ссылка OpenSearch для STAGE ===
         if (isStage) return { 
             clientArea: "https://clientarea.staging.spribe.dev", 
             adminArea: "https://admin.staging.spribe.dev",
-            openSearch: null 
+            openSearch: "https://kibana-logserver1.spribe.io" // Ссылка на Kibana
         };
 
         const host = getGeneralHostForLinks(configData);
@@ -103,10 +105,23 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         setError(null);
         setConfigData(null);
 
-        let urlGamePath = gameId; 
-        const gameInfo = GAMES_CONFIG.find(g => g.id === gameId);
-        if (gameInfo && (gameInfo.category === 'turbo' || gameInfo.category === 'slots')) {
-            urlGamePath = gameInfo.category;
+        // 1. ОПРЕДЕЛЕНИЕ ПУТИ К ИГРЕ
+        let urlGamePath = gameId;
+        
+        if (validationType === 'sgLaunchURLValidation' && /^\d+$/.test(gameId)) {
+            urlGamePath = 'aviator';
+        } else {
+            const gameInfo = GAMES_CONFIG.find(g => g.id === gameId);
+            if (gameInfo && (gameInfo.category === 'turbo' || gameInfo.category === 'slots')) {
+                urlGamePath = gameInfo.category;
+            }
+        }
+
+        // 2. ОПРЕДЕЛЕНИЕ ОПЕРАТОРА
+        let fetchOperator = operator;
+        if (validationType === 'sgLaunchURLValidation') {
+            const cleanOpId = String(operator).replace(/^sgdigital_/, '');
+            fetchOperator = `sgdigital_${cleanOpId}`;
         }
 
         let baseUrl;
@@ -119,7 +134,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         }
 
         const timestamp = Date.now(); 
-        const url = `${baseUrl}/${urlGamePath}/${operator}.json?t=${timestamp}`;
+        const url = `${baseUrl}/${urlGamePath}/${fetchOperator}.json?t=${timestamp}`;
         setFetchedUrl(url);
 
         try {
@@ -127,14 +142,13 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    const fallbackUrl = `${baseUrl}/${urlGamePath}/${operator}?t=${timestamp}`;
+                    const fallbackUrl = `${baseUrl}/${urlGamePath}/${fetchOperator}?t=${timestamp}`;
                     const fallbackResponse = await fetch(fallbackUrl);
                     if (fallbackResponse.ok) {
                         const data = await fallbackResponse.json();
                         setConfigData(data);
                         setFetchedUrl(fallbackUrl);
                         
-                        // === ВАЖНО: Уведомляем родителя о найденном регионе ===
                         const host = getGeneralHostForLinks(data);
                         const regionInfo = getRegionInfo(host);
                         if (onRegionDetected) onRegionDetected(regionInfo.code);
@@ -147,7 +161,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
             const data = await response.json();
             setConfigData(data);
 
-            // === ВАЖНО: Уведомляем родителя о найденном регионе ===
             const host = getGeneralHostForLinks(data);
             const regionInfo = getRegionInfo(host);
             if (onRegionDetected) onRegionDetected(regionInfo.code);
@@ -158,7 +171,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         } finally {
             setLoading(false);
         }
-    }, [gameId, operator, isStageEnvironment, onRegionDetected]);
+    }, [gameId, operator, isStageEnvironment, onRegionDetected, validationType]);
 
     useEffect(() => {
         fetchConfig();
@@ -170,7 +183,11 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         let isGameFound = true; 
         let isFallbackData = false; 
 
-        if (configData?.games) {
+        if (configData?.ws && !configData?.games) {
+            host = configData.ws.host || "-";
+            zone = configData.ws.zone || "-";
+        } 
+        else if (configData?.games) {
             if (configData.games[gameId]) {
                 const gameConfig = configData.games[gameId];
                 host = gameConfig.host || "-";
@@ -189,9 +206,6 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         } else if (configData?.servers && Array.isArray(configData.servers) && configData.servers.length > 0) {
             host = configData.servers[0].host || "-";
             zone = configData.servers[0].zone || "-";
-        } else if (configData?.ws) {
-            host = configData.ws.host || "-";
-            zone = configData.ws.zone || "-";
         } else {
             host = "-";
         }
@@ -211,13 +225,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
                     </div>
                 )}
                 
-                {!isGameFound && !isFallbackData && (
-                    <div className="p-4 bg-red-50 text-red-800 border border-red-200 rounded-lg mb-4 text-sm">
-                        ❌ Игра <strong>{gameId}</strong> не найдена, и нет данных других игр для определения региона.
-                    </div>
-                )}
-
-                {(isGameFound || isFallbackData) && (
+                {(isGameFound || isFallbackData || configData?.ws) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
                         <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col items-center justify-center text-center h-full">
                             <span className={labelClass}>Detected Region</span>

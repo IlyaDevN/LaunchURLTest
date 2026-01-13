@@ -4,6 +4,7 @@ import { useState } from "react";
 import { validateLaunchURLProd } from "../utils/validators/validateLaunchURLProd.js";
 import { validateLaunchURLStage } from "../utils/validators/validateLaunchURLStage.js";
 import { validateRoundDetailsUrl } from "../utils/validators/validateRoundDetailsUrl.js";
+import { validateLaunchURL_SG_Digital_LNW } from "../utils/validators/validateLaunchURL_SG_Digital_LNW.js";
 import { detectUrlType } from "../utils/helpers/urlTypeDetector.js";
 
 import ValidationResult from "./ValidationResult.jsx";
@@ -16,10 +17,7 @@ const UrlCheckerForm = () => {
     const [parsedParams, setParsedParams] = useState(null);
     const [error, setError] = useState(null);
     const [warnings, setWarnings] = useState([]);
-    
-    // Новое состояние для передачи региона из ConfigViewer в LogGenerator
     const [detectedRegion, setDetectedRegion] = useState(null);
-    
     const [isCopied, setIsCopied] = useState(false);
     const [isMirror, setIsMirror] = useState(false);
 
@@ -44,7 +42,7 @@ const UrlCheckerForm = () => {
             setParsedParams(null);
             setError(null);
             setWarnings([]);
-            setDetectedRegion(null); // Сброс региона при изменении ввода
+            setDetectedRegion(null);
         }
 
         try {
@@ -71,7 +69,7 @@ const UrlCheckerForm = () => {
         setError(null);
         setWarnings([]);
         setParsedParams(null);
-        setDetectedRegion(null); // Сброс перед новой проверкой
+        setDetectedRegion(null);
 
         if (!urlInput.trim()) {
             setError('Поле URL не может быть пустым.');
@@ -103,6 +101,8 @@ const UrlCheckerForm = () => {
             result = validateLaunchURLStage(urlInput);
         } else if (currentType === 'roundDetailsValidation') {
             result = validateRoundDetailsUrl(urlInput);
+        } else if (currentType === 'sgLaunchURLValidation') {
+            result = validateLaunchURL_SG_Digital_LNW(urlInput);
         }
 
         if (result.components) {
@@ -142,6 +142,7 @@ const UrlCheckerForm = () => {
         }
     };
 
+    // === ГЕНЕРАЦИЯ ЛЕЙБЛОВ С УЧЕТОМ СРЕДЫ И РЕЖИМА ===
     const getTypeLabel = () => {
         switch (validationType) {
             case 'prodLaunchURLValidation':
@@ -150,6 +151,18 @@ const UrlCheckerForm = () => {
                 return { text: 'Stage Launch', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
             case 'roundDetailsValidation':
                 return { text: 'Round History', color: 'bg-blue-100 text-blue-800 border-blue-200' };
+            case 'sgLaunchURLValidation':
+                // Достаем доп. информацию из распарсенных параметров (если есть)
+                const isStage = parsedParams?.payload?._environment === 'STAGE';
+                const isDemo = parsedParams?.payload?._mode?.toLowerCase() === 'demo';
+                
+                const envBadge = isStage ? 'STAGE' : 'PROD';
+                const modeBadge = isDemo ? ' | DEMO' : '';
+
+                return { 
+                    text: `Reverse: SG Digital (${envBadge}${modeBadge})`, 
+                    color: isStage ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-indigo-100 text-indigo-800 border-indigo-200' 
+                };
             default:
                 return null;
         }
@@ -239,23 +252,20 @@ const UrlCheckerForm = () => {
                 <>
                     <ValidationResult data={parsedParams} validationType={validationType} />
                     
-                    {/* Передаем setDetectedRegion чтобы получить регион из конфига */}
+                    {/* Передаем _operator (служебный) как основной operator для ConfigViewer */}
                     <OperatorConfigViewer 
                         gameId={parsedParams.gameId} 
-                        operator={parsedParams.payload?.operator} 
+                        operator={parsedParams.payload?._operator || parsedParams.payload?.operator} 
                         validationType={validationType}
                         analyzedHost={parsedParams.host} 
                         onRegionDetected={setDetectedRegion}
                     />
 
-                    {/* Передаем detectedRegion в генератор */}
-                    {parsedParams.payload && (
-                        <LogCommandGenerator 
-                            payload={parsedParams.payload} 
-                            host={parsedParams.host}
-                            region={detectedRegion}
-                        />
-                    )}
+                    <LogCommandGenerator 
+                        payload={parsedParams.payload} 
+                        host={parsedParams.host}
+                        region={detectedRegion}
+                    />
                 </>
             )}
 
