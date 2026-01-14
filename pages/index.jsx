@@ -1,8 +1,10 @@
+// pages/index.jsx
 import { useState } from "react";
 import Header from "../components/Header.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import UrlCheckerForm from "../components/UrlCheckerForm.jsx";
 import RoundDetails from "../components/RoundDetails.jsx";
+import SignatureGenerator from "../components/SignatureGenerator.jsx"; // Импорт нового компонента
 import SettingsPanel from "../components/SettingsPanel.jsx";
 
 export default function HomePage() {
@@ -14,6 +16,8 @@ export default function HomePage() {
         return <UrlCheckerForm />;
       case "roundDetails":
         return <RoundDetails />;
+      case "signature":
+        return <SignatureGenerator />; // Добавлен в рендер
       case "settings":
         return <SettingsPanel />;
       default:
