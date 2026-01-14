@@ -4,6 +4,12 @@ import { VALID_CURRENCY_CODES } from "../../staticData/currencies.js";
 
 const VALID_CURRENCY_CODES_SET = new Set(VALID_CURRENCY_CODES.map(c => c.toUpperCase()));
 
+// Список допустимых юрисдикций (White list)
+const VALID_JURISDICTIONS = new Set([
+    'br', 'it', 'gr', 'co', 'es', 'uk', 'be', 
+    'lv', 'pe', 'nl', 'ca-on', 'ro', 'ee', 'se', 'bg'
+]);
+
 const SG_GAME_MAPPING = {
     '2440001': 'aviator',
     '2440002': 'mines',
@@ -13,6 +19,7 @@ const SG_GAME_MAPPING = {
 };
 
 export const validateLaunchURL_SG_Digital_LNW = (urlToValidate) => {
+    // 0. Базовая проверка
     if (!urlToValidate) return { errors: ['URL пуст'], components: null };
     urlToValidate = urlToValidate.trim();
 
@@ -69,26 +76,30 @@ export const validateLaunchURL_SG_Digital_LNW = (urlToValidate) => {
         return { errors: ['Некорректный формат URL'], components: null };
     }
 
-    // 3. ПРОВЕРКИ
+    // === ПРОВЕРКИ (Логика не прерывается, просто копим ошибки) ===
+
+    // 1. Operator
     if (!components.payload._operator) {
         validationErrors.push('Не удалось найти ID оператора (nogsoperatorid / operatorid).');
     }
+    
+    // 2. Game ID
     if (!components.gameId) {
         validationErrors.push('Не удалось найти ID игры (nogsgameid / gameid / gameName).');
     }
     
-    // Currency обязательна только для Real mode (обычно)
+    // 3. Currency (обязательна для Real mode)
     if (!components.payload._currency && components.payload._mode?.toLowerCase() !== 'demo') {
         validationErrors.push('Не удалось найти валюту (nogscurrency / currency).');
     }
 
-    // Session ID обязателен только для REAL mode
+    // 4. Session ID (обязателен для Real mode)
     const isDemo = components.payload._mode?.toLowerCase() === 'demo';
     if (!params['sessionid'] && !isDemo) {
         validationErrors.push('Отсутствует параметр sessionid (обязателен для реальной игры).');
     }
 
-    // Проверка валюты
+    // 5. Проверка валидности кода валюты
     const cur = components.payload._currency;
     if (cur) {
         if (!VALID_CURRENCY_CODES_SET.has(cur.toUpperCase())) {
@@ -96,6 +107,16 @@ export const validateLaunchURL_SG_Digital_LNW = (urlToValidate) => {
         }
     }
 
+    // 6. ПРОВЕРКА JURISDICTION (Не прерывает выполнение, просто добавляет ошибку)
+    const jurisdiction = params['jurisdiction'];
+    if (jurisdiction && jurisdiction.trim() !== '') {
+        if (!VALID_JURISDICTIONS.has(jurisdiction.toLowerCase())) {
+            validationErrors.push(`Недопустимое значение jurisdiction: "${jurisdiction}". Ожидалось одно из: ${Array.from(VALID_JURISDICTIONS).join(', ')}`);
+        }
+    }
+
+    // В конце возвращаем всё, что собрали. 
+    // Даже если есть ошибки, components вернутся, и UI сможет их отрисовать.
     return { 
         errors: validationErrors, 
         warnings: validationWarnings, 

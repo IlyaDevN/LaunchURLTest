@@ -105,12 +105,16 @@ const UrlCheckerForm = () => {
             result = validateLaunchURL_SG_Digital_LNW(urlInput);
         }
 
+        // 1. Сначала сохраняем распарсенные компоненты (если они есть)
         if (result.components) {
             setParsedParams(result.components);
         }
+
+        // 2. Затем сохраняем ошибки (но компоненты уже в стейте, значит отрисуются)
         if (result.errors && result.errors.length > 0) {
             setError(result.errors.join(' | '));
         }
+
         if (result.warnings && result.warnings.length > 0) {
             setWarnings(result.warnings);
         }
@@ -236,7 +240,7 @@ const UrlCheckerForm = () => {
                 </div>
             )}
 
-            {warnings.length > 0 && !error && (
+            {warnings.length > 0 && (
                 <div className="mt-6 p-4 bg-yellow-50 text-yellow-800 border border-yellow-400 rounded-xl shadow-md animate-fade-in-up">
                     <div className="flex items-start">
                         <span className="text-2xl mr-3">⚠️</span>
@@ -248,11 +252,11 @@ const UrlCheckerForm = () => {
                 </div>
             )}
 
-            {parsedParams && !error && (
+            {/* ИЗМЕНЕНИЕ: Убрали проверку !error. Если parsedParams есть, показываем результат, даже если есть ошибки. */}
+            {parsedParams && (
                 <>
                     <ValidationResult data={parsedParams} validationType={validationType} />
                     
-                    {/* Передаем _operator (служебный) как основной operator для ConfigViewer */}
                     <OperatorConfigViewer 
                         gameId={parsedParams.gameId} 
                         operator={parsedParams.payload?._operator || parsedParams.payload?.operator} 
