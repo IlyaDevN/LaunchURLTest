@@ -18,14 +18,14 @@ const FREEBET_ENDPOINTS = [
     { value: "/freebets/cancel", label: "/freebets/cancel" }
 ];
 
-// === ОБНОВЛЕННЫЙ ПОРЯДОК РЕГИОНОВ ===
+// === ПОРЯДОК РЕГИОНОВ ===
 const FREEBET_REGIONS = [
     { name: "EU", url: "https://secure-ga.spribegaming.com/api/v4/" },
     { name: "AF", url: "https://af-south-1-secure-ga.spribegaming.com/api/v4/" },
     { name: "APAC", url: "https://secure-ga.apac.spribegaming.com/api/v4/" },
     { name: "SA", url: "https://sa-east-1-secure-ga.spribegaming.com/api/v4/" },
     { name: "HR", url: "https://secure-ga-hr1.spribegaming.com/api/v4/" },
-    { name: "Stage", url: "https://secure-ga.staging.spribe.io/v4/" },
+    { name: "Stage", url: "https://secure-ga.staging.spribe.io/v4/" }
 ];
 
 const SignatureGenerator = () => {
@@ -33,11 +33,10 @@ const SignatureGenerator = () => {
     const [mode, setMode] = useState("provider"); // 'provider' | 'freebet'
 
     // Inputs
-    const [baseUrl, setBaseUrl] = useState(""); // Для provider вводим вручную, для freebet выбираем из списка
+    const [baseUrl, setBaseUrl] = useState(""); 
     const [selectedEndpoint, setSelectedEndpoint] = useState(PROVIDER_ENDPOINTS[0].value);
     
-    // Для режима Freebet храним выбранный регион отдельно, чтобы управлять baseUrl
-    // По умолчанию берется первый элемент (теперь это EU)
+    // Для режима Freebet храним выбранный регион отдельно
     const [freebetRegion, setFreebetRegion] = useState(FREEBET_REGIONS[0].url);
 
     const [body, setBody] = useState("");
@@ -56,16 +55,15 @@ const SignatureGenerator = () => {
         setMatchFound(null);
         
         if (mode === "provider") {
-            setBaseUrl(""); // Очищаем или ставим дефолт
+            setBaseUrl(""); 
             setSelectedEndpoint(PROVIDER_ENDPOINTS[0].value);
         } else {
-            setBaseUrl(FREEBET_REGIONS[0].url); // Ставим дефолтный (EU)
+            setBaseUrl(FREEBET_REGIONS[0].url);
             setFreebetRegion(FREEBET_REGIONS[0].url);
             setSelectedEndpoint(FREEBET_ENDPOINTS[0].value);
         }
     }, [mode]);
 
-    // Обработчик смены региона для Freebet
     const handleRegionChange = (e) => {
         const newUrl = e.target.value;
         setFreebetRegion(newUrl);
@@ -95,8 +93,15 @@ const SignatureGenerator = () => {
     // Main calculation logic
     useEffect(() => {
         const calculateAll = async () => {
-            // Strict check
-            if (!baseUrl.trim() || !clientId.trim() || !clientSecret.trim() || !timestamp.trim() || !body.trim()) {
+            // === 1. ОЧИСТКА ВХОДНЫХ ДАННЫХ (TRIM) ===
+            const cleanBaseUrl = baseUrl.trim();
+            const cleanClientId = clientId.trim();
+            const cleanClientSecret = clientSecret.trim();
+            const cleanTimestamp = timestamp.trim();
+            const cleanBody = body.trim();
+
+            // Strict check using clean values
+            if (!cleanBaseUrl || !cleanClientId || !cleanClientSecret || !cleanTimestamp || !cleanBody) {
                 setCalculatedSignatures([]);
                 return;
             }
@@ -104,9 +109,9 @@ const SignatureGenerator = () => {
             let urlObj;
             let fullUrlString;
             try {
-                // Убираем слэш в конце базы, если он есть, чтобы не дублировать с эндпоинтом
-                const cleanBase = baseUrl.trim().replace(/\/$/, "");
-                fullUrlString = cleanBase + selectedEndpoint;
+                // Используем cleanBaseUrl
+                const baseNoSlash = cleanBaseUrl.replace(/\/$/, "");
+                fullUrlString = baseNoSlash + selectedEndpoint;
                 urlObj = new URL(fullUrlString);
             } catch (e) {
                 return;
@@ -155,8 +160,9 @@ const SignatureGenerator = () => {
             }
 
             const results = await Promise.all(scenarios.map(async (scenario) => {
-                const stringToSign = `${timestamp}${scenario.pathUsed}${body}`;
-                const sig = await hmacSha256(clientSecret, stringToSign);
+                // ИСПОЛЬЗУЕМ ОЧИЩЕННЫЕ ЗНАЧЕНИЯ ПРИ РАСЧЕТЕ ПОДПИСИ
+                const stringToSign = `${cleanTimestamp}${scenario.pathUsed}${cleanBody}`;
+                const sig = await hmacSha256(cleanClientSecret, stringToSign);
                 return {
                     ...scenario,
                     stringToSign,
@@ -181,7 +187,10 @@ const SignatureGenerator = () => {
             return;
         }
 
-        const match = calculatedSignatures.find(s => s.signature.toLowerCase() === operatorSignature.trim().toLowerCase());
+        // TRIM для подписи оператора при сравнении
+        const cleanOpSig = operatorSignature.trim().toLowerCase();
+        const match = calculatedSignatures.find(s => s.signature.toLowerCase() === cleanOpSig);
+        
         setMatchFound(match || { id: "unknown", label: "❌ No Match", desc: "Signature doesn't match any known pattern." });
     }, [operatorSignature, calculatedSignatures]);
 
@@ -235,7 +244,7 @@ const SignatureGenerator = () => {
                         </span>
                     </div>
                     
-                    {/* URL SECTION - Conditional based on mode */}
+                    {/* URL SECTION */}
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
                             {mode === "provider" ? "Callback URL" : "Freebet API Region"} <span className="text-red-500">*</span>
@@ -243,7 +252,6 @@ const SignatureGenerator = () => {
                         
                         <div className="flex gap-2">
                             {mode === "provider" ? (
-                                // PROVIDER MODE: Manual Input
                                 <div className="w-2/3">
                                     <input 
                                         type="text" 
@@ -254,7 +262,6 @@ const SignatureGenerator = () => {
                                     />
                                 </div>
                             ) : (
-                                // FREEBET MODE: Region Selector
                                 <div className="w-2/3">
                                     <select 
                                         value={freebetRegion}
@@ -268,7 +275,6 @@ const SignatureGenerator = () => {
                                 </div>
                             )}
 
-                            {/* ENDPOINT SELECTOR */}
                             <div className="w-1/3">
                                 <select 
                                     value={selectedEndpoint}
@@ -284,7 +290,7 @@ const SignatureGenerator = () => {
 
                         {baseUrl && (
                             <p className="text-[10px] text-gray-400 mt-1 break-all">
-                                Full URL: <span className="font-mono text-gray-600">{baseUrl.replace(/\/$/, "")}{selectedEndpoint}</span>
+                                Full URL: <span className="font-mono text-gray-600">{baseUrl.trim().replace(/\/$/, "")}{selectedEndpoint}</span>
                             </p>
                         )}
                     </div>
@@ -391,7 +397,8 @@ const SignatureGenerator = () => {
                                                 {correctResult.signature}
                                             </div>
                                             <div className="text-[10px] text-green-700">
-                                                <span className="font-semibold">Path:</span> <span className="font-mono break-all">{correctResult.pathUsed}</span>
+                                                <p><span className="font-semibold">Path:</span> <span className="font-mono break-all">{correctResult.pathUsed}</span></p>
+                                                <p className="mt-1"><span className="font-semibold">String to sign:</span> <span className="font-mono break-all opacity-80">{correctResult.stringToSign}</span></p>
                                             </div>
                                         </div>
                                     )}
@@ -409,7 +416,8 @@ const SignatureGenerator = () => {
                                                             {item.signature}
                                                         </div>
                                                         <div className="text-[10px] text-gray-500">
-                                                            <span className="font-semibold">Path:</span> <span className="font-mono break-all">{item.pathUsed}</span>
+                                                            <p><span className="font-semibold">Path:</span> <span className="font-mono break-all">{item.pathUsed}</span></p>
+                                                            <p className="mt-1"><span className="font-semibold">String to sign:</span> <span className="font-mono break-all opacity-80">{item.stringToSign}</span></p>
                                                         </div>
                                                     </div>
                                                 ))}
