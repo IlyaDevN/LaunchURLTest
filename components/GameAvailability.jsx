@@ -1,5 +1,5 @@
 // components/GameAvailability.jsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ID таблицы
 const SHEET_ID = "115rXeWjNXwrG499h7kSZtGimuAe6kPRxDp0afAnckYo";
@@ -63,7 +63,8 @@ const GameAvailability = () => {
         return rows;
     };
 
-    const fetchData = async () => {
+    // Оборачиваем в useCallback, чтобы устранить warning в useEffect
+    const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -139,11 +140,11 @@ const GameAvailability = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []); // Пустой массив зависимостей, так как CSV_URL константа
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]); // Теперь fetchData есть в зависимостях
 
     // Списки для выпадающих меню
     const gameList = useMemo(() => data.map(d => d.game).sort(), [data]);
@@ -191,7 +192,8 @@ const GameAvailability = () => {
             {error && (
                 <div className="bg-red-50 text-red-800 p-4 rounded-lg border border-red-200 mb-6">
                     <strong>Error:</strong> {error}
-                    <p className="text-xs mt-1">Make sure the Google Sheet has 'Game' and 'Certificates' columns.</p>
+                    {/* ИСПРАВЛЕНИЕ: Заменены кавычки на &apos; */}
+                    <p className="text-xs mt-1">Make sure the Google Sheet has &apos;Game&apos; and &apos;Certificates&apos; columns.</p>
                 </div>
             )}
 
