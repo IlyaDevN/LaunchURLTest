@@ -4,7 +4,8 @@ import Header from "../components/Header.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import UrlCheckerForm from "../components/UrlCheckerForm.jsx";
 import RoundDetails from "../components/RoundDetails.jsx";
-import SignatureGenerator from "../components/SignatureGenerator.jsx"; // Импорт нового компонента
+import SignatureGenerator from "../components/SignatureGenerator.jsx";
+import GameAvailability from "../components/GameAvailability.jsx"; // Импорт
 import SettingsPanel from "../components/SettingsPanel.jsx";
 
 export default function HomePage() {
@@ -17,7 +18,9 @@ export default function HomePage() {
       case "roundDetails":
         return <RoundDetails />;
       case "signature":
-        return <SignatureGenerator />; // Добавлен в рендер
+        return <SignatureGenerator />;
+      case "availability":
+        return <GameAvailability />; // Рендер новой страницы
       case "settings":
         return <SettingsPanel />;
       default:
@@ -28,13 +31,8 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 font-sans">
       <Header />
-
-      {/* Основной контейнер с боковой панелью */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Боковая панель */}
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-
-        {/* Главная область контента */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-10">
           {renderContent()}
         </main>
