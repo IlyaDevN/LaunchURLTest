@@ -40,7 +40,7 @@ const SignatureGenerator = () => {
     const [freebetRegion, setFreebetRegion] = useState(FREEBET_REGIONS[0].url);
 
     const [body, setBody] = useState("");
-    const [clientId, setClientId] = useState(""); 
+    // Client ID удален, так как не участвует в расчете
     const [clientSecret, setClientSecret] = useState("");
     const [timestamp, setTimestamp] = useState(""); 
     const [operatorSignature, setOperatorSignature] = useState("");
@@ -95,13 +95,12 @@ const SignatureGenerator = () => {
         const calculateAll = async () => {
             // === 1. ОЧИСТКА ВХОДНЫХ ДАННЫХ (TRIM) ===
             const cleanBaseUrl = baseUrl.trim();
-            const cleanClientId = clientId.trim();
             const cleanClientSecret = clientSecret.trim();
             const cleanTimestamp = timestamp.trim();
             const cleanBody = body.trim();
 
             // Strict check using clean values
-            if (!cleanBaseUrl || !cleanClientId || !cleanClientSecret || !cleanTimestamp || !cleanBody) {
+            if (!cleanBaseUrl || !cleanClientSecret || !cleanTimestamp || !cleanBody) {
                 setCalculatedSignatures([]);
                 return;
             }
@@ -109,7 +108,6 @@ const SignatureGenerator = () => {
             let urlObj;
             let fullUrlString;
             try {
-                // Используем cleanBaseUrl
                 const baseNoSlash = cleanBaseUrl.replace(/\/$/, "");
                 fullUrlString = baseNoSlash + selectedEndpoint;
                 urlObj = new URL(fullUrlString);
@@ -178,7 +176,7 @@ const SignatureGenerator = () => {
         };
 
         calculateAll();
-    }, [baseUrl, selectedEndpoint, body, clientSecret, timestamp, clientId]);
+    }, [baseUrl, selectedEndpoint, body, clientSecret, timestamp]);
 
     // Comparison logic
     useEffect(() => {
@@ -295,27 +293,16 @@ const SignatureGenerator = () => {
                         )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">X-Spribe-Client-ID <span className="text-red-500">*</span></label>
-                            <input 
-                                type="text" 
-                                value={clientId} 
-                                onChange={(e) => setClientId(e.target.value)} 
-                                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#2e2691] focus:outline-none font-mono text-sm"
-                                placeholder="Operator Key"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Client Secret <span className="text-red-500">*</span></label>
-                            <input 
-                                type="text" 
-                                value={clientSecret} 
-                                onChange={(e) => setClientSecret(e.target.value)} 
-                                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#2e2691] focus:outline-none font-mono text-sm"
-                                placeholder="Secret Key"
-                            />
-                        </div>
+                    {/* CLIENT SECRET (теперь на всю ширину) */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Client Secret <span className="text-red-500">*</span></label>
+                        <input 
+                            type="text" 
+                            value={clientSecret} 
+                            onChange={(e) => setClientSecret(e.target.value)} 
+                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#2e2691] focus:outline-none font-mono text-sm"
+                            placeholder="Secret Key"
+                        />
                     </div>
 
                     <div>
