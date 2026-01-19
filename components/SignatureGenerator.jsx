@@ -40,7 +40,6 @@ const SignatureGenerator = () => {
     const [freebetRegion, setFreebetRegion] = useState(FREEBET_REGIONS[0].url);
 
     const [body, setBody] = useState("");
-    // Client ID удален, так как не участвует в расчете
     const [clientSecret, setClientSecret] = useState("");
     const [timestamp, setTimestamp] = useState(""); 
     const [operatorSignature, setOperatorSignature] = useState("");
@@ -97,10 +96,10 @@ const SignatureGenerator = () => {
             const cleanBaseUrl = baseUrl.trim();
             const cleanClientSecret = clientSecret.trim();
             const cleanTimestamp = timestamp.trim();
-            const cleanBody = body.trim();
+            const cleanBody = body.trim(); // Может быть пустой строкой
 
-            // Strict check using clean values
-            if (!cleanBaseUrl || !cleanClientSecret || !cleanTimestamp || !cleanBody) {
+            // Strict check: Body теперь опционален
+            if (!cleanBaseUrl || !cleanClientSecret || !cleanTimestamp) {
                 setCalculatedSignatures([]);
                 return;
             }
@@ -159,6 +158,7 @@ const SignatureGenerator = () => {
 
             const results = await Promise.all(scenarios.map(async (scenario) => {
                 // ИСПОЛЬЗУЕМ ОЧИЩЕННЫЕ ЗНАЧЕНИЯ ПРИ РАСЧЕТЕ ПОДПИСИ
+                // Если cleanBody пустой, он просто не добавит символов в конец
                 const stringToSign = `${cleanTimestamp}${scenario.pathUsed}${cleanBody}`;
                 const sig = await hmacSha256(cleanClientSecret, stringToSign);
                 return {
@@ -293,7 +293,7 @@ const SignatureGenerator = () => {
                         )}
                     </div>
 
-                    {/* CLIENT SECRET (теперь на всю ширину) */}
+                    {/* CLIENT SECRET */}
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Client Secret <span className="text-red-500">*</span></label>
                         <input 
@@ -322,13 +322,15 @@ const SignatureGenerator = () => {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Request Body (Raw JSON) <span className="text-red-500">*</span></label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                            Request Body (Raw JSON) <span className="text-gray-400 font-normal normal-case text-[10px]">(optional)</span>
+                        </label>
                         <textarea 
                             value={body} 
                             onChange={(e) => setBody(e.target.value)} 
                             rows="4"
                             className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-[#2e2691] focus:outline-none font-mono text-xs"
-                            placeholder='{"key": "value"}'
+                            placeholder='{"key": "value"} or leave empty'
                         />
                     </div>
                 </div>
