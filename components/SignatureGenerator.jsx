@@ -14,7 +14,7 @@ const PROVIDER_ENDPOINTS = [
 // === КОНСТАНТЫ ДЛЯ РЕЖИМА FREEBET API ===
 const FREEBET_ENDPOINTS = [
     { value: "/freebets", label: "/freebets" },
-    { value: "/freebets/list", label: "/freebets/list" }, // Добавлено
+    { value: "/freebets/list", label: "/freebets/list" },
     { value: "/freebets/create", label: "/freebets/create" },
     { value: "/freebets/cancel", label: "/freebets/cancel" }
 ];
@@ -28,6 +28,36 @@ const FREEBET_REGIONS = [
     { name: "HR", url: "https://secure-ga-hr1.spribegaming.com/api/v4/" },
     { name: "Stage", url: "https://secure-ga.staging.spribe.io/v4/" }
 ];
+
+// --- ВСПОМОГАТЕЛЬНАЯ КНОПКА КОПИРОВАНИЯ ---
+const CopyButton = ({ text, label = "" }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <button 
+            onClick={handleCopy}
+            className="flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-300 rounded hover:bg-gray-50 hover:text-blue-600 transition-all shadow-sm text-xs font-bold uppercase tracking-wide text-gray-500 min-w-[80px] justify-center"
+            title="Copy to clipboard"
+        >
+            {copied ? (
+                <>
+                    <span className="text-green-600">✓ Copied</span>
+                </>
+            ) : (
+                <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    {label && <span>{label}</span>}
+                </>
+            )}
+        </button>
+    );
+};
 
 const SignatureGenerator = () => {
     // UI State
@@ -409,16 +439,45 @@ const SignatureGenerator = () => {
                             {calculatedSignatures.length > 0 ? (
                                 <>
                                     {correctResult && (
-                                        <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <span className="text-xs font-bold uppercase text-green-800">✅ Correct Signature</span>
+                                        // === ОБНОВЛЕННЫЙ БЛОК ПРАВИЛЬНОЙ ПОДПИСИ ===
+                                        <div className="bg-green-50 border-2 border-green-400 p-5 rounded-xl shadow-md">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <span className="text-sm font-bold uppercase text-green-800 flex items-center gap-2">
+                                                    ✅ Correct Signature
+                                                </span>
                                             </div>
-                                            <div className="font-mono text-sm break-all text-green-900 font-bold mb-2">
-                                                {correctResult.signature}
+                                            
+                                            {/* Signature Block */}
+                                            <div className="bg-white/80 p-3 rounded-lg border border-green-200 mb-4 flex justify-between items-center gap-4">
+                                                {/* ИЗМЕНЕНИЕ: Уменьшен шрифт до text-xs sm:text-sm */}
+                                                <div className="font-mono text-xs sm:text-sm break-all text-green-900 font-bold leading-tight">
+                                                    {correctResult.signature}
+                                                </div>
+                                                <CopyButton text={correctResult.signature} label="Copy" />
                                             </div>
-                                            <div className="text-[10px] text-green-700">
-                                                <p><span className="font-semibold">Path:</span> <span className="font-mono break-all">{correctResult.pathUsed}</span></p>
-                                                <p className="mt-1"><span className="font-semibold">String to sign:</span> <span className="font-mono break-all opacity-80">{correctResult.stringToSign}</span></p>
+
+                                            <div className="space-y-3">
+                                                {/* Path Row */}
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-green-100/50 rounded-lg">
+                                                    <div className="text-xs text-green-800">
+                                                        <span className="font-bold block sm:inline mr-2">Path:</span> 
+                                                        <span className="font-mono break-all">{correctResult.pathUsed}</span>
+                                                    </div>
+                                                    <div className="shrink-0">
+                                                        <CopyButton text={correctResult.pathUsed} />
+                                                    </div>
+                                                </div>
+
+                                                {/* String to Sign Row */}
+                                                <div className="flex flex-col gap-2 p-2 bg-green-100/50 rounded-lg">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs font-bold text-green-800">String to sign:</span>
+                                                        <CopyButton text={correctResult.stringToSign} />
+                                                    </div>
+                                                    <div className="font-mono text-[10px] sm:text-xs break-all text-gray-700 bg-white p-2 rounded border border-green-200">
+                                                        {correctResult.stringToSign}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
