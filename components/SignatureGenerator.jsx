@@ -69,6 +69,27 @@ const SignatureGenerator = () => {
         setBaseUrl(newUrl);
     };
 
+    // === ФУНКЦИЯ ДЛЯ МИНИФИКАЦИИ JSON ===
+    const handleMinifyJson = () => {
+        if (!body.trim()) return;
+
+        try {
+            // 1. Пробуем распарсить стандартный JSON
+            const obj = JSON.parse(body);
+            setBody(JSON.stringify(obj));
+        } catch (e) {
+            // 2. Если ошибка, возможно это "висячая запятая" (trailing comma)
+            // Пытаемся почистить запятые перед закрывающими скобками
+            try {
+                const fixedBody = body.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+                const obj = JSON.parse(fixedBody);
+                setBody(JSON.stringify(obj));
+            } catch (e2) {
+                alert("Invalid JSON format. Please check syntax.");
+            }
+        }
+    };
+
     // Helpers
     const hmacSha256 = async (key, message) => {
         const enc = new TextEncoder();
@@ -322,9 +343,19 @@ const SignatureGenerator = () => {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                            Request Body (Raw JSON) <span className="text-gray-400 font-normal normal-case text-[10px]">(optional)</span>
-                        </label>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="block text-xs font-bold text-gray-500 uppercase">
+                                Request Body (Raw JSON) <span className="text-gray-400 font-normal normal-case text-[10px]">(optional)</span>
+                            </label>
+                            {/* КНОПКА MINIFY JSON */}
+                            <button 
+                                onClick={handleMinifyJson}
+                                className="text-[10px] bg-indigo-50 text-[#2e2691] px-2 py-0.5 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors font-bold uppercase"
+                                title="Remove spaces and newlines"
+                            >
+                                Minify JSON
+                            </button>
+                        </div>
                         <textarea 
                             value={body} 
                             onChange={(e) => setBody(e.target.value)} 
