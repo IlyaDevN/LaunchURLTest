@@ -14,6 +14,7 @@ const PROVIDER_ENDPOINTS = [
 // === КОНСТАНТЫ ДЛЯ РЕЖИМА FREEBET API ===
 const FREEBET_ENDPOINTS = [
     { value: "/freebets", label: "/freebets" },
+    { value: "/freebets/list", label: "/freebets/list" }, // Добавлено
     { value: "/freebets/create", label: "/freebets/create" },
     { value: "/freebets/cancel", label: "/freebets/cancel" }
 ];
@@ -79,7 +80,6 @@ const SignatureGenerator = () => {
             setBody(JSON.stringify(obj));
         } catch (e) {
             // 2. Если ошибка, возможно это "висячая запятая" (trailing comma)
-            // Пытаемся почистить запятые перед закрывающими скобками
             try {
                 const fixedBody = body.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
                 const obj = JSON.parse(fixedBody);
