@@ -17,7 +17,7 @@ const GameAvailability = () => {
     const [searchMode, setSearchMode] = useState("certificate");
     const [selectedItem, setSelectedItem] = useState("");
     
-    // Выбранная игра для отображения деталей (нужно, чтобы не искать ее каждый раз в рендере)
+    // Выбранная игра для отображения деталей
     const selectedGameData = useMemo(() => {
         if (searchMode === "game" && selectedItem) {
             return data.find(d => d.game === selectedItem);
@@ -63,7 +63,6 @@ const GameAvailability = () => {
         return rows;
     };
 
-    // Оборачиваем в useCallback, чтобы устранить warning в useEffect
     const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -75,16 +74,12 @@ const GameAvailability = () => {
             const rows = parseCSV(text);
             if (rows.length < 2) throw new Error("Таблица пуста или имеет неверный формат.");
 
-            // 1. Определяем индексы колонок по заголовкам
-            // Сохраняем оригинальные заголовки для отображения в деталях
             const originalHeaders = rows[0]; 
             const headerRowLower = originalHeaders.map(h => h.toLowerCase().trim());
             
-            // Ищем колонку "Certificates"
             let certIndex = headerRowLower.findIndex(h => h.includes("certificates") || h.includes("certificate") || h.includes("cert"));
-            // Ищем колонку "Game"
             let gameIndex = headerRowLower.findIndex(h => h.includes("game"));
-            if (gameIndex === -1) gameIndex = 0; // Фоллбек на первую колонку
+            if (gameIndex === -1) gameIndex = 0; 
 
             if (certIndex === -1) {
                 throw new Error("Не найдена колонка 'Certificates'. Проверьте заголовки в таблице.");
@@ -94,7 +89,6 @@ const GameAvailability = () => {
             const allCertsSet = new Set();
             allCertsSet.add("Curacao");
 
-            // 2. Проходим по строкам с данными
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i];
                 if (!row[gameIndex]) continue;
@@ -102,7 +96,6 @@ const GameAvailability = () => {
                 const gameName = row[gameIndex];
                 const certRaw = row[certIndex] || "";
 
-                // Парсим сертификаты
                 const certs = certRaw
                     .split(/[\n,;]+/) 
                     .map(c => c.trim())
@@ -110,14 +103,11 @@ const GameAvailability = () => {
 
                 certs.forEach(c => allCertsSet.add(c));
 
-                // Собираем ВСЕ детали строки в объект
                 const details = {};
                 originalHeaders.forEach((header, idx) => {
-                    // Не включаем колонку Certificates и Game в детали (они и так видны)
-                    // Хотя Game можно оставить для полноты, но Certificates там сырые
                     if (idx !== certIndex) {
                          const val = row[idx] || "";
-                         if (val && val !== "-") { // Сохраняем только непустые значения
+                         if (val && val !== "-") { 
                              details[header] = val;
                          }
                     }
@@ -126,7 +116,7 @@ const GameAvailability = () => {
                 parsedData.push({
                     game: gameName,
                     certs: certs,
-                    details: details // Сохраняем полную инфу
+                    details: details 
                 });
             }
 
@@ -140,36 +130,49 @@ const GameAvailability = () => {
         } finally {
             setLoading(false);
         }
-    }, []); // Пустой массив зависимостей, так как CSV_URL константа
+    }, []); 
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]); // Теперь fetchData есть в зависимостях
+    }, [fetchData]); 
 
-    // Списки для выпадающих меню
-    const gameList = useMemo(() => data.map(d => d.game).sort(), [data]);
+    // Списки для выпадающих меню (СОРТИРОВКА ПО АЛФАВИТУ)
+    const gameList = useMemo(() => {
+        // Используем localeCompare для корректной алфавитной сортировки строк
+        return data.map(d => d.game).sort((a, b) => a.localeCompare(b));
+    }, [data]);
 
     // Результаты поиска (для grid карточек)
     const results = useMemo(() => {
         if (!selectedItem) return [];
 
         if (searchMode === "certificate") {
+            let foundGames = [];
+            
             // === КЕЙС: CURACAO ===
             if (selectedItem.toLowerCase() === "curacao") {
-                return data.map(item => ({ 
+                foundGames = data.map(item => ({ 
                     name: item.game, 
                     label: "All Allowed" 
                 }));
+            } else {
+                // Обычный поиск
+                foundGames = data
+                    .filter(item => item.certs.some(c => c === selectedItem || c.includes(selectedItem)))
+                    .map(item => ({ name: item.game, label: "Certified" }));
             }
-            // Обычный поиск
-            return data
-                .filter(item => item.certs.some(c => c === selectedItem || c.includes(selectedItem)))
-                .map(item => ({ name: item.game, label: "Certified" }));
+
+            // СОРТИРОВКА РЕЗУЛЬТАТОВ ПО АЛФАВИТУ
+            return foundGames.sort((a, b) => a.name.localeCompare(b.name));
+
         } else {
-            // Режим Game: возвращаем сертификаты для Grid
+            // Режим Game: возвращаем сертификаты
             const gameData = data.find(d => d.game === selectedItem);
             if (!gameData) return [];
-            return gameData.certs.map(c => ({ name: c, label: "Active" }));
+            
+            // Сертификаты тоже сортируем для красоты
+            const certs = gameData.certs.map(c => ({ name: c, label: "Active" }));
+            return certs.sort((a, b) => a.name.localeCompare(b.name));
         }
     }, [searchMode, selectedItem, data]);
 
@@ -192,7 +195,6 @@ const GameAvailability = () => {
             {error && (
                 <div className="bg-red-50 text-red-800 p-4 rounded-lg border border-red-200 mb-6">
                     <strong>Error:</strong> {error}
-                    {/* ИСПРАВЛЕНИЕ: Заменены кавычки на &apos; */}
                     <p className="text-xs mt-1">Make sure the Google Sheet has &apos;Game&apos; and &apos;Certificates&apos; columns.</p>
                 </div>
             )}
@@ -255,7 +257,7 @@ const GameAvailability = () => {
                             </span>
                         </h3>
 
-                        {/* GRID С КАРТОЧКАМИ (Сертификаты или Игры) */}
+                        {/* GRID С КАРТОЧКАМИ */}
                         {results.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                 {results.map((res, idx) => (

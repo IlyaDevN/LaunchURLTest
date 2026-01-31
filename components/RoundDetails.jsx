@@ -126,11 +126,13 @@ const RoundDetails = () => {
                             onChange={(e) => setSelectedGameId(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#2e2691] focus:border-[#2e2691] bg-white"
                         >
-                            {/* Рендерим игры из общего конфига */}
-                            {GAMES_CONFIG.map((game) => (
-                                <option key={game.id} value={game.id}>
-                                    {game.name}
-                                </option>
+                            {/* Рендерим игры из общего конфига (Сортировка по алфавиту) */}
+                            {[...GAMES_CONFIG]
+                                .sort((a, b) => a.name.localeCompare(b.name))
+                                .map((game) => (
+                                    <option key={game.id} value={game.id}>
+                                        {game.name}
+                                    </option>
                             ))}
                         </select>
                     </div>
