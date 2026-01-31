@@ -18,10 +18,14 @@ const RoundDetails = () => {
     const [baseUrl, setBaseUrl] = useState(REGIONS[0].url);
     // Берем первую игру из конфига по умолчанию
     const [selectedGameId, setSelectedGameId] = useState(GAMES_CONFIG[0].id);
+    
+    // State для типа токена (Player или Session)
+    const [tokenType, setTokenType] = useState("player_token"); // 'player_token' | 'session_token'
+
     const [formData, setFormData] = useState({
         round_id: "",
         operator: "",
-        player_token: "",
+        token: "", // Внутреннее поле для значения
         op_player_id: "",
     });
 
@@ -44,7 +48,7 @@ const RoundDetails = () => {
         const newErrors = {};
         if (!formData.operator.trim()) newErrors.operator = "Operator Key is required";
         if (!formData.round_id.trim()) newErrors.round_id = "Round ID is required";
-        if (!formData.player_token.trim()) newErrors.player_token = "Player Token is required";
+        if (!formData.token.trim()) newErrors.token = "Token is required";
         if (!formData.op_player_id.trim()) newErrors.op_player_id = "Operator Player ID is required";
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -55,11 +59,14 @@ const RoundDetails = () => {
         if (!validate()) return;
 
         const cleanBaseUrl = baseUrl.trim().replace(/\/$/, "");
+        
+        // Формируем параметры
         const params = new URLSearchParams({
             round_id: formData.round_id,
             game: selectedGameId,
             provider: currentProvider,
-            player_token: formData.player_token,
+            // Динамически подставляем имя параметра (player_token или session_token)
+            [tokenType]: formData.token, 
             op_player_id: formData.op_player_id,
             operator: formData.operator
         });
@@ -173,17 +180,52 @@ const RoundDetails = () => {
                          {errors.round_id && <p className="text-red-500 text-xs mt-1">{errors.round_id}</p>}
                     </div>
 
-                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Player Token</label>
-                        <input
-                            type="text"
-                            name="player_token"
-                            value={formData.player_token}
-                            onChange={handleInputChange}
-                            placeholder="Token string"
-                            className={getInputClass("player_token")}
-                        />
-                        {errors.player_token && <p className="text-red-500 text-xs mt-1">{errors.player_token}</p>}
+                    {/* === ПОЛЕ TOKEN (ВЫРОВНЕНО С ОСТАЛЬНЫМИ) === */}
+                    <div>
+                        {/* Лейбл теперь простой, как у всех остальных */}
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            {tokenType === 'player_token' ? 'Player Token' : 'Session Token'}
+                        </label>
+                        
+                        <div className="relative">
+                            <input
+                                type="text"
+                                name="token"
+                                value={formData.token}
+                                onChange={handleInputChange}
+                                placeholder={tokenType === 'player_token' ? "Enter Player Token" : "Enter Session Token"}
+                                // Добавляем padding справа (pr-36), чтобы текст не наезжал на кнопки
+                                className={`${getInputClass("token")} pr-36`} 
+                            />
+                            
+                            {/* Переключатель ВНУТРИ инпута справа (Абсолютное позиционирование) */}
+                            <div className="absolute right-1.5 top-1/2 transform -translate-y-1/2 flex bg-gray-100 rounded p-0.5 border border-gray-200">
+                                <button
+                                    type="button"
+                                    onClick={() => setTokenType('player_token')}
+                                    className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded transition-all ${
+                                        tokenType === 'player_token' 
+                                            ? 'bg-white text-[#2e2691] shadow-sm' 
+                                            : 'text-gray-400 hover:text-gray-600'
+                                    }`}
+                                >
+                                    Player
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTokenType('session_token')}
+                                    className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded transition-all ${
+                                        tokenType === 'session_token' 
+                                            ? 'bg-white text-[#2e2691] shadow-sm' 
+                                            : 'text-gray-400 hover:text-gray-600'
+                                    }`}
+                                >
+                                    Session
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {errors.token && <p className="text-red-500 text-xs mt-1">{errors.token}</p>}
                     </div>
 
                     <div>
@@ -213,7 +255,7 @@ const RoundDetails = () => {
                 </div>
             </div>
 
-            {/* Блок результата (БЕЗ IFRAME) */}
+            {/* Блок результата */}
             {generatedUrl && (
                 <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-fade-in-up">
                     <div className="bg-green-50 px-6 py-4 border-b border-green-100 flex items-center justify-between">
