@@ -26,6 +26,12 @@ const RoundDetails = () => {
         op_player_id: "",
     });
 
+    // === STATE ДЛЯ ПОИСКА ОПЕРАТОРА ===
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState(null);
+    const [searchSuccess, setSearchSuccess] = useState(null);
+
     const [errors, setErrors] = useState({});
     const [generatedUrl, setGeneratedUrl] = useState(null);
     const [isCopied, setIsCopied] = useState(false);
@@ -38,6 +44,93 @@ const RoundDetails = () => {
         const { name, value } = e.target;
         if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    // === ЛОГИКА ОПРЕДЕЛЕНИЯ РЕГИОНА ===
+    const getRegionCodeFromHost = (host) => {
+        if (!host || host === "-") return null;
+        const h = host.toLowerCase();
+        
+        if (h.includes("eu-central-1")) return "EU";
+        if (h.includes("af-south-1")) return "AF";
+        if (h.includes("apac") || h.includes("ap-east-1") || h.includes("ap-southeast-1")) return "APAC";
+        if (h.includes("sa-east-1")) return "SA";
+        if (h.includes("app-hr1")) return "HR";
+        if (h.includes("staging") || h.includes("dev-test") || h.includes("spribe.dev")) return "Stage";
+        
+        return "UNKNOWN";
+    };
+
+    const getGeneralHost = (data) => {
+        if (data.games) {
+            if (data.games['aviator'] && data.games['aviator'].host) return data.games['aviator'].host;
+            const firstGameKey = Object.keys(data.games)[0];
+            if (firstGameKey && data.games[firstGameKey].host) return data.games[firstGameKey].host;
+        }
+        if (data.servers && Array.isArray(data.servers) && data.servers.length > 0) return data.servers[0].host;
+        else if (data.ws) return data.ws.host;
+        return null;
+    };
+
+    const handleLookup = async () => {
+        if (!searchQuery.trim()) return;
+        
+        setIsSearching(true);
+        setSearchError(null);
+        setSearchSuccess(null);
+
+        const opKey = searchQuery.trim();
+        const timestamp = Date.now();
+        
+        const configSources = [
+            { url: `https://app-config.spribegaming.com/aviator/${opKey}.json?t=${timestamp}`, env: "Prod" },
+            { url: `https://app-config.spribe.dev/aviator/${opKey}.json?t=${timestamp}`, env: "Stage" }
+        ];
+
+        let foundConfig = null;
+        let foundEnv = null;
+
+        try {
+            for (const source of configSources) {
+                try {
+                    const res = await fetch(source.url);
+                    if (res.ok) {
+                        foundConfig = await res.json();
+                        foundEnv = source.env;
+                        break;
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+
+            if (!foundConfig) {
+                throw new Error("Operator config not found on Prod or Stage.");
+            }
+
+            const host = getGeneralHost(foundConfig);
+            const regionCode = getRegionCodeFromHost(host);
+
+            setFormData(prev => ({ ...prev, operator: opKey }));
+
+            if (regionCode) {
+                const matchedRegion = REGIONS.find(r => r.name.toUpperCase() === regionCode.toUpperCase());
+                
+                if (matchedRegion) {
+                    setBaseUrl(matchedRegion.url);
+                    setSearchSuccess(`Found on ${foundEnv}. Region detected: ${regionCode}`);
+                } else {
+                    setSearchSuccess(`Found on ${foundEnv}. Host: ${host}. Please select region manually.`);
+                }
+            } else {
+                setSearchSuccess(`Found on ${foundEnv}, but could not detect region host.`);
+            }
+
+        } catch (err) {
+            setSearchError(err.message || "Failed to lookup operator.");
+        } finally {
+            setIsSearching(false);
+        }
     };
 
     const validate = () => {
@@ -86,6 +179,7 @@ const RoundDetails = () => {
     };
 
     return (
+        // ИЗМЕНЕНИЕ: Убран pt-8, space-y-8 заменен на space-y-6
         <div className="flex flex-col h-full space-y-6 max-w-7xl mx-auto w-full pb-10">
             <h1 className="text-3xl font-extrabold text-gray-900 text-center">
                 Round Details Generator
@@ -93,6 +187,35 @@ const RoundDetails = () => {
 
             {/* Блок формы */}
             <div className="bg-white p-6 rounded-xl shadow-xl border border-gray-200">
+                
+                {/* === БЛОК: ПОИСК ОПЕРАТОРА (AUTO-DETECT) === */}
+                <div className="mb-8 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                        Region detection by operator key
+                    </label>
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Enter Operator Key (e.g. demo) to auto-fill settings..."
+                            className="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:ring-[#2e2691] focus:border-[#2e2691] text-sm"
+                            onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+                        />
+                        <button
+                            onClick={handleLookup}
+                            disabled={isSearching}
+                            className="px-4 py-2 bg-gray-800 text-white text-sm font-bold rounded-md hover:bg-gray-700 transition disabled:opacity-50 min-w-[120px]"
+                        >
+                            {/* ИЗМЕНЕНИЕ: Текст кнопки изменен на Detect */}
+                            {isSearching ? "Searching..." : "Detect"}
+                        </button>
+                    </div>
+                    {/* Сообщения о статусе поиска */}
+                    {searchError && <p className="text-red-500 text-xs mt-2 font-semibold flex items-center gap-1">❌ {searchError}</p>}
+                    {searchSuccess && <p className="text-green-600 text-xs mt-2 font-semibold flex items-center gap-1">✅ {searchSuccess}</p>}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     
                     <div className="col-span-1 lg:col-span-3">
@@ -247,14 +370,14 @@ const RoundDetails = () => {
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                         </svg>
-                                        <span className="text-green-600">Скопировано</span>
+                                        <span className="text-green-600">Copied</span>
                                     </>
                                 ) : (
                                     <>
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                         </svg>
-                                        <span>Копировать ссылку</span>
+                                        <span>Copy Link</span>
                                     </>
                                 )}
                             </button>
@@ -269,7 +392,7 @@ const RoundDetails = () => {
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                 </svg>
-                                <span>Открыть в новой вкладке</span>
+                                <span>Open in New Tab</span>
                             </a>
                         </>
                     )}
@@ -282,7 +405,7 @@ const RoundDetails = () => {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                         </svg>
-                        Получить детали раунда
+                        Get Round Details
                     </button>
                 </div>
             </div>
