@@ -179,7 +179,6 @@ const RoundDetails = () => {
     };
 
     return (
-        // ИЗМЕНЕНИЕ: Убран pt-8, space-y-8 заменен на space-y-6
         <div className="flex flex-col h-full space-y-6 max-w-7xl mx-auto w-full pb-10">
             <h1 className="text-3xl font-extrabold text-gray-900 text-center">
                 Round Details Generator
@@ -207,7 +206,6 @@ const RoundDetails = () => {
                             disabled={isSearching}
                             className="px-4 py-2 bg-gray-800 text-white text-sm font-bold rounded-md hover:bg-gray-700 transition disabled:opacity-50 min-w-[120px]"
                         >
-                            {/* ИЗМЕНЕНИЕ: Текст кнопки изменен на Detect */}
                             {isSearching ? "Searching..." : "Detect"}
                         </button>
                     </div>
@@ -248,7 +246,8 @@ const RoundDetails = () => {
                         <select
                             value={selectedGameId}
                             onChange={(e) => setSelectedGameId(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#2e2691] focus:border-[#2e2691] bg-white"
+                            // ИЗМЕНЕНИЕ: Добавлен класс h-[42px] для принудительного выравнивания высоты
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#2e2691] focus:border-[#2e2691] bg-white h-[42px]"
                         >
                             {[...GAMES_CONFIG]
                                 .sort((a, b) => a.name.localeCompare(b.name))
