@@ -16,16 +16,13 @@ const REGIONS = [
 const RoundDetails = () => {
     // Состояние формы
     const [baseUrl, setBaseUrl] = useState(REGIONS[0].url);
-    // Берем первую игру из конфига по умолчанию
     const [selectedGameId, setSelectedGameId] = useState(GAMES_CONFIG[0].id);
-    
-    // State для типа токена (Player или Session)
-    const [tokenType, setTokenType] = useState("player_token"); // 'player_token' | 'session_token'
+    const [tokenType, setTokenType] = useState("player_token");
 
     const [formData, setFormData] = useState({
         round_id: "",
         operator: "",
-        token: "", // Внутреннее поле для значения
+        token: "",
         op_player_id: "",
     });
 
@@ -33,7 +30,6 @@ const RoundDetails = () => {
     const [generatedUrl, setGeneratedUrl] = useState(null);
     const [isCopied, setIsCopied] = useState(false);
 
-    // Вычисляем текущего провайдера на основе общего конфига
     const currentProvider = useMemo(() => {
         return GAMES_CONFIG.find(g => g.id === selectedGameId)?.provider || "";
     }, [selectedGameId]);
@@ -60,12 +56,10 @@ const RoundDetails = () => {
 
         const cleanBaseUrl = baseUrl.trim().replace(/\/$/, "");
         
-        // Формируем параметры
         const params = new URLSearchParams({
             round_id: formData.round_id,
             game: selectedGameId,
             provider: currentProvider,
-            // Динамически подставляем имя параметра (player_token или session_token)
             [tokenType]: formData.token, 
             op_player_id: formData.op_player_id,
             operator: formData.operator
@@ -133,7 +127,6 @@ const RoundDetails = () => {
                             onChange={(e) => setSelectedGameId(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#2e2691] focus:border-[#2e2691] bg-white"
                         >
-                            {/* Рендерим игры из общего конфига (Сортировка по алфавиту) */}
                             {[...GAMES_CONFIG]
                                 .sort((a, b) => a.name.localeCompare(b.name))
                                 .map((game) => (
@@ -180,9 +173,7 @@ const RoundDetails = () => {
                          {errors.round_id && <p className="text-red-500 text-xs mt-1">{errors.round_id}</p>}
                     </div>
 
-                    {/* === ПОЛЕ TOKEN (ВЫРОВНЕНО С ОСТАЛЬНЫМИ) === */}
                     <div>
-                        {/* Лейбл теперь простой, как у всех остальных */}
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             {tokenType === 'player_token' ? 'Player Token' : 'Session Token'}
                         </label>
@@ -194,11 +185,9 @@ const RoundDetails = () => {
                                 value={formData.token}
                                 onChange={handleInputChange}
                                 placeholder={tokenType === 'player_token' ? "Enter Player Token" : "Enter Session Token"}
-                                // Добавляем padding справа (pr-36), чтобы текст не наезжал на кнопки
                                 className={`${getInputClass("token")} pr-36`} 
                             />
                             
-                            {/* Переключатель ВНУТРИ инпута справа (Абсолютное позиционирование) */}
                             <div className="absolute right-1.5 top-1/2 transform -translate-y-1/2 flex bg-gray-100 rounded p-0.5 border border-gray-200">
                                 <button
                                     type="button"
@@ -242,38 +231,16 @@ const RoundDetails = () => {
                     </div>
                 </div>
 
-                <div className="flex justify-end border-t border-gray-100 pt-4">
-                    <button
-                        onClick={handleGenerate}
-                        className="px-6 py-3 bg-[#2e2691] text-white font-semibold rounded-lg shadow hover:bg-blue-800 transition transform hover:scale-[1.02] active:scale-95 flex items-center gap-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                        Сгенерировать ссылку
-                    </button>
-                </div>
-            </div>
-
-            {/* Блок результата */}
-            {generatedUrl && (
-                <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-fade-in-up">
-                    <div className="bg-green-50 px-6 py-4 border-b border-green-100 flex items-center justify-between">
-                        <h3 className="text-lg font-bold text-green-800 flex items-center gap-2">
-                            ✅ Ссылка готова
-                        </h3>
-                    </div>
+                {/* НИЖНЯЯ ПАНЕЛЬ С КНОПКАМИ */}
+                <div className="flex flex-col sm:flex-row justify-end items-center border-t border-gray-100 pt-4 gap-3">
                     
-                    <div className="p-6">
-                        <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 font-mono text-sm text-gray-700 break-all mb-6">
-                            {generatedUrl}
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-4 justify-end">
-                            {/* Кнопка Копировать */}
+                    {/* Кнопки появляются только после генерации */}
+                    {generatedUrl && (
+                        <>
+                            {/* Кнопка Копировать ссылку */}
                             <button 
                                 onClick={handleCopy}
-                                className="flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 hover:text-[#2e2691] hover:border-[#2e2691] transition-all w-full sm:w-auto"
+                                className="order-2 sm:order-1 flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 hover:text-[#2e2691] hover:border-[#2e2691] transition-all w-full sm:w-auto"
                             >
                                 {isCopied ? (
                                     <>
@@ -287,24 +254,51 @@ const RoundDetails = () => {
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                         </svg>
-                                        <span>Копировать</span>
+                                        <span>Копировать ссылку</span>
                                     </>
                                 )}
                             </button>
 
-                            {/* Кнопка Открыть */}
+                            {/* Кнопка Открыть в новой вкладке */}
                             <a 
                                 href={generatedUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-2 px-6 py-3 bg-[#2e2691] text-white font-bold rounded-lg hover:bg-blue-800 shadow-md transition-all w-full sm:w-auto no-underline"
+                                className="order-3 sm:order-2 flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 hover:text-[#2e2691] hover:border-[#2e2691] transition-all w-full sm:w-auto no-underline"
                             >
-                                <span>Открыть в новой вкладке</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                 </svg>
+                                <span>Открыть в новой вкладке</span>
                             </a>
-                        </div>
+                        </>
+                    )}
+
+                    {/* Кнопка Получить детали (Главная) */}
+                    <button
+                        onClick={handleGenerate}
+                        className="order-1 sm:order-3 px-6 py-3 bg-[#2e2691] text-white font-semibold rounded-lg shadow hover:bg-blue-800 transition transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 w-full sm:w-auto"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        Получить детали раунда
+                    </button>
+                </div>
+            </div>
+
+            {/* Блок результата (Только Iframe) */}
+            {generatedUrl && (
+                <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-fade-in-up">
+                    <div className="border-gray-300 overflow-hidden bg-white">
+                        <iframe 
+                            src={generatedUrl} 
+                            width="100%" 
+                            height="670px" 
+                            className="w-full h-[670px]"
+                            frameBorder="0"
+                            title="Round Details"
+                        />
                     </div>
                 </div>
             )}
