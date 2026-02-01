@@ -82,48 +82,60 @@ const RoundDetails = () => {
         const opKey = searchQuery.trim();
         const timestamp = Date.now();
         
+        // Определяем источники для проверки
         const configSources = [
             { url: `https://app-config.spribegaming.com/aviator/${opKey}.json?t=${timestamp}`, env: "Prod" },
             { url: `https://app-config.spribe.dev/aviator/${opKey}.json?t=${timestamp}`, env: "Stage" }
         ];
 
-        let foundConfig = null;
-        let foundEnv = null;
-
         try {
-            for (const source of configSources) {
+            // Запускаем запросы параллельно
+            const promises = configSources.map(async (source) => {
                 try {
                     const res = await fetch(source.url);
                     if (res.ok) {
-                        foundConfig = await res.json();
-                        foundEnv = source.env;
-                        break;
+                        const data = await res.json();
+                        const host = getGeneralHost(data);
+                        const regionCode = getRegionCodeFromHost(host);
+                        return { 
+                            env: source.env, 
+                            data, 
+                            host, 
+                            regionCode: regionCode || "UNKNOWN" 
+                        };
                     }
                 } catch (e) {
-                    continue;
+                    return null;
                 }
-            }
+                return null;
+            });
 
-            if (!foundConfig) {
+            const results = (await Promise.all(promises)).filter(r => r !== null);
+
+            if (results.length === 0) {
                 throw new Error("Operator config not found on Prod or Stage.");
             }
 
-            const host = getGeneralHost(foundConfig);
-            const regionCode = getRegionCodeFromHost(host);
+            // Формируем сообщение о результатах
+            const resultDescriptions = results.map(r => `${r.env} (${r.regionCode})`);
+            const successMessage = `Found on: ${resultDescriptions.join(" & ")}`;
+            setSearchSuccess(successMessage);
+
+            // Логика автозаполнения:
+            // Приоритет отдаем Prod. Если есть Prod, берем его настройки. Если нет - берем Stage.
+            const targetConfig = results.find(r => r.env === "Prod") || results[0];
 
             setFormData(prev => ({ ...prev, operator: opKey }));
 
-            if (regionCode) {
-                const matchedRegion = REGIONS.find(r => r.name.toUpperCase() === regionCode.toUpperCase());
+            if (targetConfig.regionCode) {
+                const matchedRegion = REGIONS.find(r => r.name.toUpperCase() === targetConfig.regionCode.toUpperCase());
                 
                 if (matchedRegion) {
                     setBaseUrl(matchedRegion.url);
-                    setSearchSuccess(`Found on ${foundEnv}. Region detected: ${regionCode}`);
                 } else {
-                    setSearchSuccess(`Found on ${foundEnv}. Host: ${host}. Please select region manually.`);
+                    // Регион определен (например UNKNOWN или специфичный), но его нет в списке
+                    // Оставляем Base URL как есть или ставим Custom, но не ломаем логику
                 }
-            } else {
-                setSearchSuccess(`Found on ${foundEnv}, but could not detect region host.`);
             }
 
         } catch (err) {
@@ -246,7 +258,6 @@ const RoundDetails = () => {
                         <select
                             value={selectedGameId}
                             onChange={(e) => setSelectedGameId(e.target.value)}
-                            // ИЗМЕНЕНИЕ: Добавлен класс h-[42px] для принудительного выравнивания высоты
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#2e2691] focus:border-[#2e2691] bg-white h-[42px]"
                         >
                             {[...GAMES_CONFIG]
