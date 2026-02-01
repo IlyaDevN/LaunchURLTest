@@ -26,8 +26,8 @@ export const GAMES_CONFIG = [
     { id: "forest-of-wisps", name: "Forest of Wisps", provider: "spribe_slots", category: "slots" },
     { id: "keplers-paradise", name: "Kepler's Paradise", provider: "spribe_slots", category: "slots" },
     { id: "viking-pub", name: "Viking Pub", provider: "spribe_slots", category: "slots" },
-    { id: "fruit-garden", name: "Fruit Garden", provider: "spribe_slots", category: "slots" },
-    { id: "piggy-heist", name: "Piggy Heist", provider: "spribe_slots", category: "slots" },
+    //{ id: "fruit-garden", name: "Fruit Garden", provider: "spribe_slots", category: "slots" },
+    //{ id: "piggy-heist", name: "Piggy Heist", provider: "spribe_slots", category: "slots" },
 
     // --- MULTIPLAYER / LIVE ---
     { id: "multikeno", name: "Keno 80 (Multikeno)", provider: "spribe_keno", category: "multiplayer" },

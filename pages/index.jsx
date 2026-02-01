@@ -3,9 +3,10 @@ import { useState } from "react";
 import Header from "../components/Header.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import UrlCheckerForm from "../components/UrlCheckerForm.jsx";
+import OperatorConfig from "../components/OperatorConfig.jsx"; // <--- Импорт нового компонента
 import RoundDetails from "../components/RoundDetails.jsx";
 import SignatureGenerator from "../components/SignatureGenerator.jsx";
-import GameAvailability from "../components/GameAvailability.jsx"; // Импорт
+import GameAvailability from "../components/GameAvailability.jsx";
 import SettingsPanel from "../components/SettingsPanel.jsx";
 
 export default function HomePage() {
@@ -15,12 +16,14 @@ export default function HomePage() {
     switch (activeTab) {
       case "validator":
         return <UrlCheckerForm />;
+      case "operatorConfig":
+        return <OperatorConfig />;
       case "roundDetails":
         return <RoundDetails />;
       case "signature":
         return <SignatureGenerator />;
       case "availability":
-        return <GameAvailability />; // Рендер новой страницы
+        return <GameAvailability />;
       case "settings":
         return <SettingsPanel />;
       default:
