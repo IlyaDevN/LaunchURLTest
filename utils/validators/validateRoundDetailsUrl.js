@@ -1,7 +1,6 @@
 // utils/validators/validateRoundDetailsUrl.js
 import { GAMES_CONFIG } from "../../staticData/games.js";
 
-// 1. Допустимые домены (Region Hubs)
 const VALID_HOSTS = [
     "games-info.spribegaming.com",      // EU
     "games-info-af.spribegaming.com",   // AF
@@ -11,12 +10,10 @@ const VALID_HOSTS = [
     "games-info.staging.spribe.dev"     // Stage
 ];
 
-// 2. Обязательные параметры
-// === ИСПРАВЛЕНИЕ: player_token добавлен сюда, session_token убран ===
 const MANDATORY_PARAMS = ["round_id", "game", "provider", "operator", "op_player_id", "player_token"];
 
 export const validateRoundDetailsUrl = (urlToValidate) => {
-    if (!urlToValidate) return { errors: ['URL пуст'], warnings: [], components: null };
+    if (!urlToValidate) return { errors: ['URL is empty'], warnings: [], components: null };
     urlToValidate = urlToValidate.trim();
 
     let validationErrors = [];
@@ -26,7 +23,7 @@ export const validateRoundDetailsUrl = (urlToValidate) => {
     let params = {};
 
     if (!urlToValidate.toLowerCase().startsWith('http://') && !urlToValidate.toLowerCase().startsWith('https://')) {
-         return { errors: ['URL должен начинаться с "http://" или "https://"'], warnings: [], components: null };
+         return { errors: ['URL must start with "http://" or "https://"'], warnings: [], components: null };
     }
 
     try {
@@ -39,23 +36,23 @@ export const validateRoundDetailsUrl = (urlToValidate) => {
         const host = urlObject.host.toLowerCase();
         
         if (!VALID_HOSTS.includes(host)) {
-            let errorMsg = `Некорректный домен: "${host}".`;
+            let errorMsg = `Invalid domain: "${host}".`;
             let suggestion = "";
 
             if (host.includes("-ap") || host.includes(".ap.") || host.includes("asia")) {
-                suggestion = " Похоже на регион APAC. Правильный домен: games-info.apac.spribegaming.com";
+                suggestion = " Looks like APAC region. Correct domain: games-info.apac.spribegaming.com";
             } else if (host.includes("-eu") || host.includes(".eu.")) {
-                suggestion = " Похоже на регион EU. Правильный домен: games-info.spribegaming.com";
+                suggestion = " Looks like EU region. Correct domain: games-info.spribegaming.com";
             } else if (host.includes("-af") || host.includes(".af.")) {
-                suggestion = " Похоже на регион AF (Africa). Правильный домен: games-info-af.spribegaming.com";
+                suggestion = " Looks like AF region. Correct domain: games-info-af.spribegaming.com";
             } else if (host.includes("-sa") || host.includes(".sa.") || host.includes("latam")) {
-                suggestion = " Похоже на регион SA (South America). Правильный домен: games-info-sa.spribegaming.com";
+                suggestion = " Looks like SA region. Correct domain: games-info-sa.spribegaming.com";
             } else if (host.includes("staging") || host.includes("test")) {
-                suggestion = " Для стейджа правильный домен: games-info.staging.spribe.dev";
+                suggestion = " For stage, correct domain is: games-info.staging.spribe.dev";
             }
 
             if (suggestion) errorMsg += suggestion;
-            else errorMsg += " Ожидался один из доменов games-info (EU, APAC, SA, AF, HR или Stage).";
+            else errorMsg += " Expected one of the games-info domains (EU, APAC, SA, AF, HR or Stage).";
             
             validationErrors.push(errorMsg);
         }
@@ -68,41 +65,36 @@ export const validateRoundDetailsUrl = (urlToValidate) => {
         };
 
     } catch (e) {
-        return { errors: ['Некорректный формат URL'], warnings: [], components: null };
+        return { errors: ['Invalid URL format'], warnings: [], components: null };
     }
 
-    // 3. Проверка обязательных параметров
     MANDATORY_PARAMS.forEach(key => {
         if (!params[key] || params[key].trim() === '') {
-            validationErrors.push(`Отсутствует обязательный параметр: "${key}"`);
+            validationErrors.push(`Missing mandatory parameter: "${key}"`);
         }
     });
     
-    // 3.1 Проверка пробелов в значениях
     Object.keys(params).forEach(key => {
         const value = params[key];
-        // Проверяем только обязательные поля
         if (MANDATORY_PARAMS.includes(key) && value && /\s/.test(value)) {
-             validationErrors.push(`Некорректное значение: Параметр "${key}" содержит пробелы ("${value}").`);
+             validationErrors.push(`Invalid value: Parameter "${key}" contains whitespace ("${value}").`);
         }
     });
 
-    // Если есть ошибки, возвращаем их
     if (validationErrors.length > 0) {
         return { errors: validationErrors, warnings: validationWarnings, components };
     }
 
-    // 4. Логическая валидация (Игра + Провайдер)
     const gameId = (components.gameId || '').trim();
     const provider = (params['provider'] || '').trim();
 
     const gameConfig = GAMES_CONFIG.find(g => g.id === gameId);
     
     if (!gameConfig) {
-        validationWarnings.push(`Предупреждение: ID игры "${gameId}" не найден в справочнике валидатора.`);
+        validationWarnings.push(`Warning: Game ID "${gameId}" not found in validator database.`);
     } else {
         if (provider !== gameConfig.provider) {
-            validationErrors.push(`Неверный provider для игры "${gameId}". Ожидался: "${gameConfig.provider}", получен: "${provider}"`);
+            validationErrors.push(`Invalid provider for game "${gameId}". Expected: "${gameConfig.provider}", got: "${provider}"`);
         }
     }
 

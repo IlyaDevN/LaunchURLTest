@@ -16,9 +16,7 @@ const ValidationResult = ({ data, validationType }) => {
         return new Set([...REQUIRED_PARAMS, ...OPTIONAL_PARAMS]);
     }, [validationType]);
 
-    // === ЛОГИКА ОТОБРАЖЕНИЯ ОПЕРАТОРА ===
     const displayOperator = useMemo(() => {
-        // Пытаемся найти оператора в служебном поле или в сырых данных
         const rawOp = data.payload?._operator || data.payload?.operator || data.payload?.nogsoperatorid || '-';
         
         if (validationType === 'sgLaunchURLValidation' && rawOp !== '-') {
@@ -44,17 +42,15 @@ const ValidationResult = ({ data, validationType }) => {
             });
     };
 
-    // Поля, которые мы генерируем сами в коде валидатора и не хотим показывать пользователю в списке параметров
     const INTERNAL_FIELDS = [
         'mappedGameId'
-        // exitUrl здесь НЕТ, он будет показан
     ];
 
     return (
         <div className="mt-8 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-fade-in-up">
             <div className="bg-[#2e2691] px-6 py-4 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    ✅ Результат анализа
+                    ✅ Analysis Result
                 </h3>
                 <span className="text-xs text-blue-200 bg-white/10 px-2 py-1 rounded">
                     Valid Format
@@ -85,14 +81,10 @@ const ValidationResult = ({ data, validationType }) => {
 
                 <div className="mb-6">
                     <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 border-b pb-2">
-                        Параметры запроса (Query Params)
+                        Query Parameters
                     </h4>
                     <div className="grid grid-cols-1 gap-1">
                         {Object.entries(data.payload)
-                            // ФИЛЬТРАЦИЯ:
-                            // 1. Скрываем поля, начинающиеся с "_" (это наши служебные поля: _operator, _environment и т.д.)
-                            // 2. Скрываем поля из списка INTERNAL_FIELDS (mappedGameId)
-                            // exitUrl не попадает под фильтр и будет показан.
                             .filter(([key]) => !key.startsWith('_') && !INTERNAL_FIELDS.includes(key))
                             .map(([key, value]) => {
                                 const isCopied = copiedKey === key;
@@ -102,7 +94,7 @@ const ValidationResult = ({ data, validationType }) => {
                                     <div key={key} className="flex flex-col sm:flex-row sm:items-center justify-between py-1 hover:bg-gray-50 rounded-lg border border-transparent hover:border-gray-200 transition-colors group">
                                         <span className={`font-semibold w-1/3 mb-1 sm:mb-0 flex items-center gap-1 ${isKnown ? 'text-gray-700' : 'text-amber-600'}`}>
                                             {!isKnown && (
-                                                <span title="Неизвестный параметр">⚠️</span>
+                                                <span title="Unknown parameter">⚠️</span>
                                             )}
                                             {key}
                                         </span>
@@ -115,7 +107,7 @@ const ValidationResult = ({ data, validationType }) => {
                                             <button 
                                                 onClick={() => handleCopy(key, value)}
                                                 className={`ml-2 transition-all p-1 ${isCopied ? 'opacity-100' : 'text-gray-400 hover:text-[#2e2691] opacity-0 group-hover:opacity-100'}`}
-                                                title="Копировать значение"
+                                                title="Copy value"
                                             >
                                                 {isCopied ? (
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -139,7 +131,7 @@ const ValidationResult = ({ data, validationType }) => {
                         onClick={() => setShowJson(!showJson)}
                         className="text-xs text-gray-500 hover:text-[#2e2691] font-medium flex items-center gap-1 focus:outline-none"
                     >
-                        {showJson ? '🔼 Скрыть сырой JSON' : '🔽 Показать сырой JSON'}
+                        {showJson ? '🔼 Hide Raw JSON' : '🔽 Show Raw JSON'}
                     </button>
                     
                     {showJson && (

@@ -1,6 +1,6 @@
 // components/OperatorConfigViewer.jsx
 import { useState, useEffect, useCallback } from "react";
-// Импортируем общий конфиг
+// Import common config
 import { GAMES_CONFIG } from "../staticData/games.js";
 
 const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, onRegionDetected }) => {
@@ -17,13 +17,12 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         setShowJson(false); 
     }, [gameId, operator, validationType, analyzedHost]);
 
-    // === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+    // === HELPER FUNCTIONS ===
     const isStageEnvironment = useCallback(() => {
         if (validationType === 'stageLaunchURLValidation') return true;
         if (validationType === 'roundDetailsValidation' && analyzedHost) {
             if (analyzedHost.includes('staging') || analyzedHost.includes('spribe.dev') || analyzedHost.includes('spribe.io')) return true;
         }
-        // Доп. проверка для dev-test.spribe.io (это тоже Stage)
         if (analyzedHost && (analyzedHost.includes('dev-test') || analyzedHost.includes('stage'))) return true;
         
         return false;
@@ -57,11 +56,10 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
     };
 
     const getManagementLinks = () => {
-        // === ИСПРАВЛЕНИЕ: Добавлена ссылка OpenSearch для STAGE ===
         if (isStage) return { 
             clientArea: "https://clientarea.staging.spribe.dev", 
             adminArea: "https://admin.staging.spribe.dev",
-            openSearch: "https://kibana-logserver1.spribe.io" // Ссылка на Kibana
+            openSearch: "https://kibana-logserver1.spribe.io" 
         };
 
         const host = getGeneralHostForLinks(configData);
@@ -105,7 +103,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         setError(null);
         setConfigData(null);
 
-        // 1. ОПРЕДЕЛЕНИЕ ПУТИ К ИГРЕ
+        // 1. DETERMINE GAME PATH
         let urlGamePath = gameId;
         
         if (validationType === 'sgLaunchURLValidation' && /^\d+$/.test(gameId)) {
@@ -117,7 +115,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
             }
         }
 
-        // 2. ОПРЕДЕЛЕНИЕ ОПЕРАТОРА
+        // 2. DETERMINE OPERATOR
         let fetchOperator = operator;
         if (validationType === 'sgLaunchURLValidation') {
             const cleanOpId = String(operator).replace(/^sgdigital_/, '');
@@ -155,7 +153,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
                         return;
                     }
                 }
-                throw new Error(`Ошибка HTTP: ${response.status} ${response.statusText}`);
+                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -167,7 +165,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
 
         } catch (err) {
             console.error(err);
-            setError(`Не удалось загрузить конфиг.\nURL: ${url}\nДетали: ${err.message}`);
+            setError(`Failed to load config.\nURL: ${url}\nDetails: ${err.message}`);
         } finally {
             setLoading(false);
         }
@@ -219,9 +217,9 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
             <div className="mb-6">
                 {!isGameFound && isFallbackData && (
                     <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg mb-4 text-sm">
-                        ⚠️ Настройки для <strong>{gameId}</strong> отсутствуют! <strong>Возможно игра не включена для данного оператора.</strong>
+                        ⚠️ Settings for <strong>{gameId}</strong> are missing! <strong>The game might not be enabled for this operator.</strong>
                         <br/>
-                        Ниже показаны параметры региона на основе других игр из конфигурации оператора.
+                        Region parameters based on other games in the operator config are shown below.
                     </div>
                 )}
                 
@@ -251,7 +249,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         <div className="mt-6 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-fade-in-up">
             <div className="bg-[#2e2691] px-6 py-4 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    ⚙️ Конфигурация оператора
+                    ⚙️ Operator Configuration
                 </h3>
                 <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${isStage ? 'bg-yellow-500 text-black' : 'bg-green-600 text-white'}`}>
                     {isStage ? 'Stage (Dev)' : 'Production'}
@@ -262,16 +260,16 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
                 {loading && (
                     <div className="flex items-center text-indigo-600 py-4 justify-center">
                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        Загрузка конфигурации...
+                        Loading configuration...
                     </div>
                 )}
 
                 {error && (
                     <div className="mt-4 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
-                        <p className="font-bold">❌ Ошибка загрузки конфига:</p>
+                        <p className="font-bold">❌ Config loading error:</p>
                         <p className="whitespace-pre-wrap mt-1">{error}</p>
                         <button onClick={fetchConfig} className="mt-3 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition text-xs font-semibold">
-                            Повторить попытку
+                            Retry
                         </button>
                     </div>
                 )}
@@ -279,7 +277,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
                 {configData && !loading && (
                     <div className="animate-fade-in">
                         <p className="text-xs text-gray-500 mb-4 flex justify-between">
-                            <span>Конфиг для: <strong>{operator}</strong> / <strong>{gameId}</strong></span>
+                            <span>Config for: <strong>{operator}</strong> / <strong>{gameId}</strong></span>
                             <span className="font-mono text-[10px] text-gray-400">{fetchedUrl}</span>
                         </p>
                         
@@ -323,7 +321,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
 
                         <div className="border-t border-gray-100 pt-4">
                             <button onClick={() => setShowJson(!showJson)} className="text-xs text-gray-500 hover:text-[#2e2691] font-medium flex items-center gap-1 focus:outline-none transition-colors">
-                                {showJson ? '🔼 Скрыть сырой JSON' : '🔽 Показать сырой JSON'}
+                                {showJson ? '🔼 Hide Raw JSON' : '🔽 Show Raw JSON'}
                             </button>
                             {showJson && (
                                 <div className="mt-3 relative group">
@@ -339,7 +337,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
                         
                         <div className="mt-4 flex justify-end">
                             <button onClick={fetchConfig} className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">
-                                🔄 Обновить данные
+                                🔄 Refresh Data
                             </button>
                         </div>
                     </div>

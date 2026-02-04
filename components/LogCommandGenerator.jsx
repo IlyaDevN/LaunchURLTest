@@ -1,7 +1,7 @@
 // components/LogCommandGenerator.jsx
 import { useState, useEffect, useMemo } from "react";
 
-// ... (константы без изменений) ...
+// ... (constants remain the same) ...
 const OS_URLS = {
     AF: "https://elk-spr-afs1-gp-prod1.af-south-1.spribegaming.com",
     EU: "https://elk-spr-euc1-gp-prod1.eu-central-1.spribegaming.com",
@@ -49,24 +49,19 @@ const getInitialTimeState = () => {
 const LogCommandGenerator = ({ payload, host, region }) => {
     const [copiedId, setCopiedId] = useState(null);
 
-    // === ИЗВЛЕЧЕНИЕ ПАРАМЕТРОВ ===
     const isSgDigital = payload?.nogsgameid || payload?.accountid || payload?.nogsoperatorid || payload?.sessionid || payload?.ogsgameid;
 
-    // 1. Operator
     let rawOperator = payload?.operator || payload?.nogsoperatorid || "OPERATOR_NOT_FOUND";
     if (isSgDigital && rawOperator !== "OPERATOR_NOT_FOUND" && !String(rawOperator).startsWith('sgdigital_')) {
         rawOperator = `sgdigital_${rawOperator}`;
     }
     const operator = rawOperator;
 
-    // 2. Token
     const token = payload?.sessionid || payload?.token || payload?.player_token || payload?.session_token || "TOKEN_NOT_FOUND";
 
-    // 3. User
-    // У SG Digital иногда нет accountid в launcher-ссылках. Тогда используем sessionid как user id (фоллбек).
     let rawUser = payload?.accountid || payload?.user || payload?.op_player_id;
     if (!rawUser && isSgDigital && token !== "TOKEN_NOT_FOUND") {
-        rawUser = token; // Fallback to sessionid
+        rawUser = token; 
     }
     const user = rawUser || "USER_NOT_FOUND";
     
@@ -75,12 +70,10 @@ const LogCommandGenerator = ({ payload, host, region }) => {
     const [searchType, setSearchType] = useState("token"); 
     const [editedCommands, setEditedCommands] = useState({});
 
-    // === UI STATE ===
     const [activeTab, setActiveTab] = useState("sf"); 
     const [osService, setOsService] = useState("sc"); 
     const [timeZoneMode, setTimeZoneMode] = useState("KYIV"); 
 
-    // ... (TIME STATE и остальные useEffect/useMemo без изменений) ...
     const initialTime = getInitialTimeState();
     const [startDate, setStartDate] = useState(initialTime.date);
     const [endDate, setEndDate] = useState(initialTime.date);
@@ -176,10 +169,10 @@ const LogCommandGenerator = ({ payload, host, region }) => {
             fileTarget = `${filename}.${fileDate}-*.gz (Warning: Multi-day range)`;
         }
         return [
-            { label: "Текущий лог (Live)", desc: `Поиск в активном файле`, cmd: `grep "${searchTerm}" ${filename}` },
-            { label: "Точный диапазон (AWK)", desc: `По UTC: с ${startTimeStr} по ${endTimeStr}`, cmd: `zcat ${fileTarget} | awk '$0 >= "${startTimeStr}" && $0 <= "${endTimeStr}"' | grep "${searchTerm}"` },
-            { label: "Конкретный час (Архив)", desc: `Файл за ${fileDate} ${startH}:00 UTC`, cmd: `zgrep "${searchTerm}" ${filename}.${fileDate}-${startH}.gz` },
-            { label: "Все архивы за день", desc: `Все файлы за ${fileDate} (UTC)`, cmd: `zgrep "${searchTerm}" ${filename}.${fileDate}-*` }
+            { label: "Current Log (Live)", desc: `Search in active file`, cmd: `grep "${searchTerm}" ${filename}` },
+            { label: "Exact Range (AWK)", desc: `UTC: from ${startTimeStr} to ${endTimeStr}`, cmd: `zcat ${fileTarget} | awk '$0 >= "${startTimeStr}" && $0 <= "${endTimeStr}"' | grep "${searchTerm}"` },
+            { label: "Specific Hour (Archive)", desc: `File for ${fileDate} ${startH}:00 UTC`, cmd: `zgrep "${searchTerm}" ${filename}.${fileDate}-${startH}.gz` },
+            { label: "All Daily Archives", desc: `All files for ${fileDate} (UTC)`, cmd: `zgrep "${searchTerm}" ${filename}.${fileDate}-*` }
         ];
     };
 
@@ -204,7 +197,7 @@ const LogCommandGenerator = ({ payload, host, region }) => {
     return (
         <div className="mt-6 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-fade-in-up">
             <div className="bg-gray-800 px-6 py-4 flex flex-col xl:flex-row justify-between items-center gap-4">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2 min-w-max">📜 Генератор / Логи</h3>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2 min-w-max">📜 Generator / Logs</h3>
                 <div className="flex bg-gray-700 rounded-lg p-1 text-xs">
                     <button onClick={() => setActiveTab("sf")} className={`px-4 py-1.5 rounded-md transition-all font-medium ${activeTab === "sf" ? "bg-blue-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>Game Server</button>
                     <button onClick={() => setActiveTab("app")} className={`px-4 py-1.5 rounded-md transition-all font-medium ${activeTab === "app" ? "bg-blue-600 text-white shadow" : "text-gray-400 hover:text-white"}`}>App Logs</button>
@@ -222,13 +215,13 @@ const LogCommandGenerator = ({ payload, host, region }) => {
             {activeTab === "os" && (
                 <div className="bg-teal-50 px-4 py-3 border-b border-teal-100 flex flex-col sm:flex-row justify-between items-center gap-4 animate-fade-in">
                     <div className="flex items-center gap-2 text-sm text-teal-800">
-                        <span className="font-bold">Сервис ({detectedRegion}):</span>
+                        <span className="font-bold">Service ({detectedRegion}):</span>
                         <select value={osService} onChange={(e) => setOsService(e.target.value)} className="px-2 py-1 border border-teal-200 rounded text-teal-900 focus:ring-2 focus:ring-teal-500 text-xs font-semibold">
                             {Object.entries(currentServicesList).map(([key, val]) => (<option key={key} value={key}>{val.label}</option>))}
                         </select>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-teal-800">
-                        <span className="font-bold">Режим времени:</span>
+                        <span className="font-bold">Time Mode:</span>
                         <div className="flex bg-teal-200 rounded p-0.5">
                             <button onClick={() => setTimeZoneMode("KYIV")} className={`px-3 py-0.5 rounded text-xs font-bold transition-all ${timeZoneMode === "KYIV" ? "bg-white text-teal-800 shadow" : "text-teal-600 hover:text-teal-800"}`}>Kyiv</button>
                             <button onClick={() => setTimeZoneMode("UTC")} className={`px-3 py-0.5 rounded text-xs font-bold transition-all ${timeZoneMode === "UTC" ? "bg-white text-teal-800 shadow" : "text-teal-600 hover:text-teal-800"}`}>UTC</button>
@@ -239,7 +232,7 @@ const LogCommandGenerator = ({ payload, host, region }) => {
 
             <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex flex-col xl:flex-row flex-wrap items-center gap-4 text-sm justify-center xl:justify-start">
                 <div className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-gray-200 shadow-sm">
-                    <span className="font-bold text-gray-500 text-xs">С:</span>
+                    <span className="font-bold text-gray-500 text-xs">From:</span>
                     <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="px-1 py-1 border border-gray-300 rounded text-gray-700 h-7 text-xs focus:ring-1 focus:ring-[#2e2691] focus:outline-none"/>
                     <div className="flex gap-0.5 items-center">
                         <select value={fromHour} onChange={(e) => setFromHour(e.target.value)} className="time-select rounded-l-md">{hours.map(h => <option key={h} value={h}>{h}</option>)}</select>
@@ -252,7 +245,7 @@ const LogCommandGenerator = ({ payload, host, region }) => {
                 </div>
                 <span className="text-gray-400 hidden xl:block">→</span>
                 <div className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-gray-200 shadow-sm">
-                    <span className="font-bold text-gray-500 text-xs">ПО:</span>
+                    <span className="font-bold text-gray-500 text-xs">To:</span>
                     <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="px-1 py-1 border border-gray-300 rounded text-gray-700 h-7 text-xs focus:ring-1 focus:ring-[#2e2691] focus:outline-none"/>
                     <div className="flex gap-0.5 items-center">
                         <select value={toHour} onChange={(e) => setToHour(e.target.value)} className="time-select rounded-l-md">{hours.map(h => <option key={h} value={h}>{h}</option>)}</select>
@@ -277,17 +270,17 @@ const LogCommandGenerator = ({ payload, host, region }) => {
                     <div className="animate-fade-in space-y-4">
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3 shadow-sm">
                             <span className="text-xl">🔒</span>
-                            <div className="text-xs text-yellow-800 leading-snug"><strong className="font-bold">Внимание:</strong> Перед поиском необходимо авторизоваться в OpenSearch. <br/> Ссылку для входа можно найти выше в блоке <strong>&quot;Конфигурация оператора&quot;</strong>.</div>
+                            <div className="text-xs text-yellow-800 leading-snug"><strong className="font-bold">Attention:</strong> You must log in to OpenSearch before searching. <br/> The login link can be found above in the <strong>&quot;Operator Configuration&quot;</strong> block.</div>
                         </div>
                         <div className="bg-teal-50 border border-teal-200 rounded-xl p-8 text-center shadow-sm flex flex-col items-center">
                             <div className="text-sm text-teal-700 mb-6">
-                                <div className="mb-2">Поисковый запрос для <strong className="text-teal-900">{currentServicesList[osService]?.label}</strong>:</div>
+                                <div className="mb-2">Search query for <strong className="text-teal-900">{currentServicesList[osService]?.label}</strong>:</div>
                                 <code className="bg-white border border-teal-200 px-3 py-1.5 rounded text-teal-800 font-mono text-xs shadow-sm">message:&quot;{searchTerm}&quot;</code>
                             </div>
                             <a href={generateOpenSearchLink()} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-teal-600 text-white font-bold rounded-lg shadow-lg hover:bg-teal-700 hover:shadow-xl transition-all transform hover:-translate-y-0.5 no-underline w-full sm:w-auto">
-                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><span>Открыть в Discover</span>
+                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><span>Open in Discover</span>
                             </a>
-                            <div className="mt-4 text-xs text-gray-400 max-w-lg">Режим: <strong>{timeZoneMode}</strong>.<br/>{timeZoneMode === "KYIV" ? "Время передается как есть (OpenSearch покажет его правильно)." : "Время передается как UTC (OpenSearch отобразит его в вашем локальном времени)."}</div>
+                            <div className="mt-4 text-xs text-gray-400 max-w-lg">Mode: <strong>{timeZoneMode}</strong>.<br/>{timeZoneMode === "KYIV" ? "Time passed as is (OpenSearch will display it correctly)." : "Time passed as UTC (OpenSearch will display it in your local time)."}</div>
                         </div>
                     </div>
                 )}

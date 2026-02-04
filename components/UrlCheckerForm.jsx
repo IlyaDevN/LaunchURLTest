@@ -50,7 +50,7 @@ const UrlCheckerForm = () => {
             setValidationType(detected || '');
             setIsMirror(checkIfMirror(value));
         } catch (err) {
-            console.warn("Ошибка автоопределения типа:", err);
+            console.warn("Auto-detection error:", err);
         }
     };
 
@@ -61,7 +61,7 @@ const UrlCheckerForm = () => {
                 handleInputChange({ target: { value: text } });
             }
         } catch (err) {
-            console.error('Не удалось прочитать буфер обмена:', err);
+            console.error('Failed to read clipboard:', err);
         }
     };
 
@@ -72,7 +72,7 @@ const UrlCheckerForm = () => {
         setDetectedRegion(null);
 
         if (!urlInput.trim()) {
-            setError('Поле URL не может быть пустым.');
+            setError('URL field cannot be empty.');
             return;
         }
 
@@ -87,7 +87,7 @@ const UrlCheckerForm = () => {
                 } catch (e) {
                     baseUrlPart = urlInput.split('?')[0];
                 }
-                setError(`Не удалось определить тип ссылки.\nУбедитесь в корректности URL: ${baseUrlPart}`);
+                setError(`Could not detect URL type.\nPlease ensure the URL is correct: ${baseUrlPart}`);
                 return;
             }
             setValidationType(currentType);
@@ -105,12 +105,10 @@ const UrlCheckerForm = () => {
             result = validateLaunchURL_SG_Digital_LNW(urlInput);
         }
 
-        // 1. Сначала сохраняем распарсенные компоненты (если они есть)
         if (result.components) {
             setParsedParams(result.components);
         }
 
-        // 2. Затем сохраняем ошибки (но компоненты уже в стейте, значит отрисуются)
         if (result.errors && result.errors.length > 0) {
             setError(result.errors.join(' | '));
         }
@@ -146,7 +144,6 @@ const UrlCheckerForm = () => {
         }
     };
 
-    // === ГЕНЕРАЦИЯ ЛЕЙБЛОВ С УЧЕТОМ СРЕДЫ И РЕЖИМА ===
     const getTypeLabel = () => {
         switch (validationType) {
             case 'prodLaunchURLValidation':
@@ -156,7 +153,6 @@ const UrlCheckerForm = () => {
             case 'roundDetailsValidation':
                 return { text: 'Round History', color: 'bg-blue-100 text-blue-800 border-blue-200' };
             case 'sgLaunchURLValidation':
-                // Достаем доп. информацию из распарсенных параметров (если есть)
                 const isStage = parsedParams?.payload?._environment === 'STAGE';
                 const isDemo = parsedParams?.payload?._mode?.toLowerCase() === 'demo';
                 
@@ -184,7 +180,7 @@ const UrlCheckerForm = () => {
                 <div className="flex flex-col space-y-4">
                     <textarea
                         rows="4"
-                        placeholder="Вставьте ссылку сюда (Launch URL или Round Details)..."
+                        placeholder="Paste URL here (Launch URL or Round Details)..."
                         value={urlInput}
                         onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
@@ -214,17 +210,17 @@ const UrlCheckerForm = () => {
                         </div>
 
                         <div className="flex w-full sm:w-auto gap-2 justify-end">
-                            <button type="button" onClick={handleClear} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-red-600 hover:border-red-200 transition-all focus:outline-none" title="Очистить">
+                            <button type="button" onClick={handleClear} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-red-600 hover:border-red-200 transition-all focus:outline-none" title="Clear">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
-                            <button type="button" onClick={handlePaste} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all focus:outline-none" title="Вставить из буфера">
+                            <button type="button" onClick={handlePaste} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all focus:outline-none" title="Paste">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
                             </button>
-                            <button type="button" onClick={handleCopy} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-[#2e2691] hover:border-[#2e2691] transition-all focus:outline-none" title="Копировать">
+                            <button type="button" onClick={handleCopy} className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-600 border border-gray-300 font-medium rounded-lg shadow-sm hover:bg-gray-50 hover:text-[#2e2691] hover:border-[#2e2691] transition-all focus:outline-none" title="Copy">
                                 {isCopied ? <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>}
                             </button>
                             <button type="button" onClick={handleCheckUrl} className="flex items-center justify-center gap-2 px-6 py-3 text-white font-semibold bg-[#2e2691] rounded-lg shadow-md hover:bg-blue-700 hover:shadow-lg focus:outline-none transition duration-150 transform hover:scale-[1.01] active:scale-95">
-                                <span className="hidden sm:inline">Проверить URL</span><span className="sm:hidden">Check</span>
+                                <span className="hidden sm:inline">Check URL</span><span className="sm:hidden">Check</span>
                             </button>
                         </div>
                     </div>
@@ -235,7 +231,7 @@ const UrlCheckerForm = () => {
                 <div className="mt-6 p-4 bg-red-100 text-red-800 border border-red-500 rounded-xl shadow-md animate-fade-in-up">
                     <div className="flex items-start">
                         <span className="text-2xl mr-3">❌</span>
-                        <div><h4 className="font-bold text-lg mb-1">Ошибка валидации:</h4><p className="whitespace-pre-wrap text-sm">{error}</p></div>
+                        <div><h4 className="font-bold text-lg mb-1">Validation Error:</h4><p className="whitespace-pre-wrap text-sm">{error}</p></div>
                     </div>
                 </div>
             )}
@@ -245,14 +241,13 @@ const UrlCheckerForm = () => {
                     <div className="flex items-start">
                         <span className="text-2xl mr-3">⚠️</span>
                         <div>
-                            <h4 className="font-bold text-lg mb-1">Предупреждение:</h4>
+                            <h4 className="font-bold text-lg mb-1">Warning:</h4>
                             {warnings.map((warn, index) => (<p key={index} className="whitespace-pre-wrap text-sm mb-1">{warn}</p>))}
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* ИЗМЕНЕНИЕ: Убрали проверку !error. Если parsedParams есть, показываем результат, даже если есть ошибки. */}
             {parsedParams && (
                 <>
                     <ValidationResult data={parsedParams} validationType={validationType} />
@@ -274,7 +269,7 @@ const UrlCheckerForm = () => {
             )}
 
             <div className="mt-6 p-4 text-center text-gray-500 text-sm">
-                <p>Этот валидатор автоматически определяет тип ссылки и выполняет соответствующие проверки.</p>
+                <p>This validator automatically detects the URL type and performs the corresponding checks.</p>
             </div>
         </div>
     );

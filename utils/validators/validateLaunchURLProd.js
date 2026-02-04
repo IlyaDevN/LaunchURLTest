@@ -9,37 +9,29 @@ const VALID_CURRENCY_CODES_SET = new Set(VALID_CURRENCY_CODES.map(c => c.toUpper
 const VALID_GAMES = [...CRASH_GAMES, ...TURBO_GAMES, ...SLOT_GAMES, ...MULTIPLAYER_GAMES];
 
 export const validateLaunchURLProd = (urlToValidate) => {
-    // === 0. ПРЕДВАРИТЕЛЬНАЯ ОЧИСТКА ===
-    if (!urlToValidate) return { errors: ['URL пуст'], warnings: [], components: null };
+    if (!urlToValidate) return { errors: ['URL is empty'], warnings: [], components: null };
     urlToValidate = urlToValidate.trim();
 
     let validationErrors = [];
     let validationWarnings = []; 
     let urlObjectFull; 
-    let urlObjectParams;
     let components = { gameId: '', payload: {} }; 
     let params = {};
     
-    // === 1. ПОДГОТОВКА БЕЗОПАСНОЙ СТРОКИ ===
-    // Заменяем return_url на заглушку
     let urlForParamsCheck = urlToValidate.replace(/return_url\+?=[^&]*/gi, "return_url=skipped");
 
-    // Проверка протокола
     if (!urlToValidate.toLowerCase().startsWith('http://') && !urlToValidate.toLowerCase().startsWith('https://')) {
-         validationErrors.push('URL должен начинаться с "http://" или "https://".');
+         validationErrors.push('URL must start with "http://" or "https://".');
          return { errors: validationErrors, warnings: [], components: null };
     }
 
-    // 2.1. ПРОВЕРКА СИНТАКСИСА
     const inputWithoutProtocol = urlForParamsCheck.replace(/^https?:\/\//i, '');
-    if (inputWithoutProtocol.includes('//')) validationErrors.push('Обнаружены последовательные слэши "//" вне протокола.');
-    if (urlForParamsCheck.includes('&&')) validationErrors.push('Обнаружен двойной амперсанд "&&" в URL.');
+    if (inputWithoutProtocol.includes('//')) validationErrors.push('Detected consecutive slashes "//" outside protocol.');
+    if (urlForParamsCheck.includes('&&')) validationErrors.push('Detected double ampersand "&&" in URL.');
 
     try {
-        // Парсим ПОЛНЫЙ URL
         urlObjectFull = new URL(urlToValidate);
         
-        // === СБОР ПАРАМЕТРОВ ===
         urlObjectFull.searchParams.forEach((value, key) => {
             if (key !== '') {
                 if (key === 'return_url ') {
@@ -50,7 +42,6 @@ export const validateLaunchURLProd = (urlToValidate) => {
             }
         });
 
-        // === ОПРЕДЕЛЕНИЕ ИГРЫ ПО ДОМЕНУ ===
         const host = urlObjectFull.host.toLowerCase().replace(/^www\./, '');
         const pathname = urlObjectFull.pathname;
         const pathSegments = pathname.split('/').filter(p => p);
@@ -81,7 +72,7 @@ export const validateLaunchURLProd = (urlToValidate) => {
             case host === 'pilot-chicken.spribegaming.com': extractedGameId = 'pilot-chicken'; break;
 
             default:
-                validationErrors.push(`Неизвестный домен: "${host}".`);
+                validationErrors.push(`Unknown domain: "${host}".`);
         }
 
         components = {
@@ -91,14 +82,13 @@ export const validateLaunchURLProd = (urlToValidate) => {
             payload: params
         };
 
-        // Висячий слэш
         if (pathname !== '/' && pathname.endsWith('/') && urlObjectFull.search) {
-            validationErrors.push('Путь URL заканчивается слэшем "/" непосредственно перед строкой запроса.');
+            validationErrors.push('URL path ends with a slash "/" right before the query string.');
         }
 
     } catch (e) {
         if (validationErrors.length === 0) {
-             validationErrors.push('Некорректный формат URL.');
+             validationErrors.push('Invalid URL format.');
         }
     }
     
@@ -106,7 +96,6 @@ export const validateLaunchURLProd = (urlToValidate) => {
         return { errors: validationErrors, warnings: validationWarnings, components: null };
     }
 
-    // 3. ПРОВЕРКА: Неизвестные параметры
     const foundParams = Object.keys(components.payload);
     const unknownParams = foundParams.filter(key => {
         const cleanKey = key.replace(/\+$/, '');
@@ -114,55 +103,48 @@ export const validateLaunchURLProd = (urlToValidate) => {
     });
 
     if (unknownParams.length > 0) {
-        validationWarnings.push(`Обнаружены неизвестные параметры: "${unknownParams.join(', ')}".`);
+        validationWarnings.push(`Unknown parameters detected: "${unknownParams.join(', ')}".`);
     }
 
-    // 4. ПРОВЕРКА: Название игры
     if (!components.gameId) {
-        validationErrors.push('Не удалось определить Game ID из URL.'); 
+        validationErrors.push('Could not detect Game ID from URL.'); 
     } else {
         const gameId = components.gameId.toLowerCase();
         if (!VALID_GAMES.includes(gameId)) {
-            validationErrors.push(`Игра "${gameId}" не найдена в списке допустимых игр.`);
+            validationErrors.push(`Game "${gameId}" not found in allowed games list.`);
         }
     }
 
-    // 5. ПРОВЕРКА: Обязательные параметры
     REQUIRED_PARAMS.forEach(key => {
         if (!components.payload[key] || components.payload[key].trim() === '') {
-            validationErrors.push(`Отсутствует обязательный параметр: "${key}"`);
+            validationErrors.push(`Missing mandatory parameter: "${key}"`);
         }
     });
     
-    // 6. ПРОВЕРКА: Слэши в значениях
     REQUIRED_PARAMS.forEach(key => {
         const value = components.payload[key];
         if (key.startsWith('return_url')) return;
 
         if (value && value.includes('/')) {
-            validationErrors.push(`Некорректное значение: Обязательный параметр "${key}" содержит слэш (/).`);
+            validationErrors.push(`Invalid value: Mandatory parameter "${key}" contains slash (/).`);
         }
     });
 
-    // === 7. НОВАЯ ПРОВЕРКА: ПРОБЕЛЫ В ЗНАЧЕНИЯХ ===
     REQUIRED_PARAMS.forEach(key => {
         const value = components.payload[key];
-        // Проверяем на наличие пробельных символов (пробел, таб, неразрывный пробел)
         if (value && /\s/.test(value)) {
-             validationErrors.push(`Некорректное значение: Параметр "${key}" содержит пробелы ("${value}").`);
+             validationErrors.push(`Invalid value: Parameter "${key}" contains whitespace ("${value}").`);
         }
     });
 
-    // 8. ПРОВЕРКА: Валюта
     const currencyCode = components.payload.currency;
     if (currencyCode) {
-        // Проверка валюты тоже должна включать проверку на пробелы (на всякий случай)
         if (/\s/.test(currencyCode)) {
-             validationErrors.push(`Некорректное значение: Код валюты "${currencyCode}" содержит пробелы.`);
+             validationErrors.push(`Invalid value: Currency code "${currencyCode}" contains whitespace.`);
         } else {
             const isValidCurrency = VALID_CURRENCY_CODES_SET.has(currencyCode.toUpperCase());
             if (!isValidCurrency) {
-                validationErrors.push(`Валюта "${currencyCode}" не найдена в списке допустимых кодов.`);
+                validationErrors.push(`Currency "${currencyCode}" not found in allowed list.`);
             }
         }
     }
