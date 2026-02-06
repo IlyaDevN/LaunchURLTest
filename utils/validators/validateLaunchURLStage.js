@@ -63,6 +63,10 @@ export const validateLaunchURLStage = (urlToValidate) => {
                 extractedGameId = 'aviator';
                 break;
 
+            case 'pilot-chicken.staging.spribe.dev':
+                extractedGameId = 'pilot-chicken';
+                break;
+
             default:
                 if (host.endsWith('.staging.spribe.dev')) {
                     extractedGameId = pathname.split('/')[1] || '';
