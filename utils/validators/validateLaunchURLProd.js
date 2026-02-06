@@ -123,7 +123,8 @@ export const validateLaunchURLProd = (urlToValidate) => {
     
     REQUIRED_PARAMS.forEach(key => {
         const value = components.payload[key];
-        if (key.startsWith('return_url')) return;
+        // === ИСПРАВЛЕНИЕ: Пропускаем проверку слэшей для return_url И token ===
+        if (key.startsWith('return_url') || key === 'token') return;
 
         if (value && value.includes('/')) {
             validationErrors.push(`Invalid value: Mandatory parameter "${key}" contains slash (/).`);
