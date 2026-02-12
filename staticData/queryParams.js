@@ -1,4 +1,4 @@
-// staticData\queryParams.js
+// staticData/queryParams.js
 
 // Список обязательных параметров Launch URL
 export const REQUIRED_PARAMS = ["user", "token", "currency", "operator"];
@@ -11,6 +11,7 @@ export const OPTIONAL_PARAMS = [
   "account_history_url",
   "irc_duration",
   "irc_elapsed",
+  "jurisdiction",
 ];
 
 export const ROUND_DETAILS_PARAMS = [

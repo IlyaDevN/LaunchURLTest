@@ -57,19 +57,32 @@ export const validateLaunchURLProd = (urlToValidate) => {
             case host === 'cdnet-launch.apac.spribegaming.com':
                 extractedGameId = pathSegments[pathSegments.length - 1] || '';
                 break;
+            
+            // === AVIATOR (Prod & Demo) ===
             case host === 'aviator-next.spribegaming.com':
             case host === 'aviaport.spribegaming.com':
+            case host === 'aviator-demo.spribegaming.com':
             case isMirrorDomain:
                 extractedGameId = 'aviator';
                 break;
+
+            // === TURBO / SLOTS (Prod & Demo используют один домен turbo/slots) ===
             case host === 'turbo.spribegaming.com':
             case host === 'slots.spribegaming.com':
                 extractedGameId = pathSegments[pathSegments.length - 1] || '';
                 break;
+
+            // === SPECIFIC GAMES ===
             case host === 'keno80.spribegaming.com': extractedGameId = 'multikeno'; break;
+            case host === 'keno.spribegaming.com': extractedGameId = 'keno'; break;
             case host === 'trader.spribegaming.com': extractedGameId = 'trader'; break;
             case host === 'starline.spribegaming.com': extractedGameId = 'starline'; break;
-            case host === 'pilot-chicken.spribegaming.com': extractedGameId = 'pilot-chicken'; break;
+            
+            // === PILOT CHICKEN (Prod & Demo) ===
+            case host === 'pilot-chicken.spribegaming.com': 
+            case host === 'pilot-chicken-demo.spribegaming.com':
+                extractedGameId = 'pilot-chicken'; 
+                break;
 
             default:
                 validationErrors.push(`Unknown domain: "${host}".`);
@@ -123,7 +136,7 @@ export const validateLaunchURLProd = (urlToValidate) => {
     
     REQUIRED_PARAMS.forEach(key => {
         const value = components.payload[key];
-        // === ИСПРАВЛЕНИЕ: Пропускаем проверку слэшей для return_url И token ===
+        // Пропускаем проверку слэшей для return_url и token
         if (key.startsWith('return_url') || key === 'token') return;
 
         if (value && value.includes('/')) {

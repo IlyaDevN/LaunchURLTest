@@ -147,21 +147,53 @@ const UrlCheckerForm = () => {
     const getTypeLabel = () => {
         switch (validationType) {
             case 'prodLaunchURLValidation':
+                // === ОБНОВЛЕННАЯ ЛОГИКА ДЛЯ DEMO ===
+                let isDemo = false;
+
+                // 1. Если уже нажали Check и есть распарсенные данные
+                if (parsedParams) {
+                    const isDemoHost = parsedParams.host?.includes('demo');
+                    const isDemoOp = parsedParams.payload?.operator === 'demo';
+                    isDemo = isDemoHost || isDemoOp;
+                } 
+                // 2. Если просто вставили ссылку (еще не парсили), проверяем сырую строку
+                else if (urlInput) {
+                    const lowerInput = urlInput.toLowerCase();
+                    // Ищем ключевые слова в URL
+                    const hasDemoHost = lowerInput.includes('demo.spribegaming.com') || lowerInput.includes('aviator-demo');
+                    const hasDemoOp = lowerInput.includes('operator=demo');
+                    isDemo = hasDemoHost || hasDemoOp;
+                }
+                
+                if (isDemo) {
+                    return { text: 'Demo Launch', color: 'bg-orange-100 text-orange-800 border-orange-200' };
+                }
                 return { text: 'Prod Launch', color: 'bg-green-100 text-green-800 border-green-200' };
+                
             case 'stageLaunchURLValidation':
                 return { text: 'Stage Launch', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' };
             case 'roundDetailsValidation':
                 return { text: 'Round History', color: 'bg-blue-100 text-blue-800 border-blue-200' };
             case 'sgLaunchURLValidation':
-                const isStage = parsedParams?.payload?._environment === 'STAGE';
-                const isDemo = parsedParams?.payload?._mode?.toLowerCase() === 'demo';
+                // Для SG Digital тоже лучше проверять сырую строку, если parsedParams нет
+                let isSgStage = false;
+                let isSgDemo = false;
+
+                if (parsedParams) {
+                    isSgStage = parsedParams.payload?._environment === 'STAGE';
+                    isSgDemo = parsedParams.payload?._mode?.toLowerCase() === 'demo';
+                } else if (urlInput) {
+                    const lowerInput = urlInput.toLowerCase();
+                    isSgStage = lowerInput.includes('stage') || lowerInput.includes('dev') || lowerInput.includes('test');
+                    isSgDemo = lowerInput.includes('mode=demo') || lowerInput.includes('nogsmode=demo');
+                }
                 
-                const envBadge = isStage ? 'STAGE' : 'PROD';
-                const modeBadge = isDemo ? ' | DEMO' : '';
+                const envBadge = isSgStage ? 'STAGE' : 'PROD';
+                const modeBadge = isSgDemo ? ' | DEMO' : '';
 
                 return { 
                     text: `Reverse: SG Digital (${envBadge}${modeBadge})`, 
-                    color: isStage ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-indigo-100 text-indigo-800 border-indigo-200' 
+                    color: isSgStage ? 'bg-purple-100 text-purple-800 border-purple-200' : 'bg-indigo-100 text-indigo-800 border-indigo-200' 
                 };
             default:
                 return null;
