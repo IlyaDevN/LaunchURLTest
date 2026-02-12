@@ -33,7 +33,10 @@ const RoundDetails = () => {
     const [searchSuccess, setSearchSuccess] = useState(null);
 
     const [errors, setErrors] = useState({});
+    
     const [generatedUrl, setGeneratedUrl] = useState(null);
+    const [iframeKey, setIframeKey] = useState(0); // <--- НОВОЕ: Ключ для ре-рендера iframe
+    
     const [isCopied, setIsCopied] = useState(false);
 
     const currentProvider = useMemo(() => {
@@ -122,7 +125,6 @@ const RoundDetails = () => {
             setSearchSuccess(successMessage);
 
             // Логика автозаполнения:
-            // Приоритет отдаем Prod. Если есть Prod, берем его настройки. Если нет - берем Stage.
             const targetConfig = results.find(r => r.env === "Prod") || results[0];
 
             setFormData(prev => ({ ...prev, operator: opKey }));
@@ -132,9 +134,6 @@ const RoundDetails = () => {
                 
                 if (matchedRegion) {
                     setBaseUrl(matchedRegion.url);
-                } else {
-                    // Регион определен (например UNKNOWN или специфичный), но его нет в списке
-                    // Оставляем Base URL как есть или ставим Custom, но не ломаем логику
                 }
             }
 
@@ -156,7 +155,6 @@ const RoundDetails = () => {
     };
 
     const handleGenerate = () => {
-        setGeneratedUrl(null);
         if (!validate()) return;
 
         const cleanBaseUrl = baseUrl.trim().replace(/\/$/, "");
@@ -171,7 +169,9 @@ const RoundDetails = () => {
         });
 
         const fullUrl = `${cleanBaseUrl}/?${params.toString()}`;
+        
         setGeneratedUrl(fullUrl);
+        setIframeKey(prev => prev + 1);
     };
 
     const handleCopy = () => {
@@ -425,6 +425,7 @@ const RoundDetails = () => {
                 <div className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden animate-fade-in-up">
                     <div className="border-gray-300 overflow-hidden bg-white">
                         <iframe 
+                            key={iframeKey}
                             src={generatedUrl} 
                             width="100%" 
                             height="670px" 
