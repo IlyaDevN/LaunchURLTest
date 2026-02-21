@@ -10,7 +10,7 @@ import GameAvailability from "../components/GameAvailability.jsx";
 import SettingsPanel from "../components/SettingsPanel.jsx";
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState("validator");
+  const [activeTab, setActiveTab] = useState("operatorConfig");
 
   const renderContent = () => {
     switch (activeTab) {
