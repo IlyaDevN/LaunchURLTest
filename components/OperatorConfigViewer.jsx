@@ -3,6 +3,15 @@ import { useState, useEffect, useCallback } from "react";
 // Import common config
 import { GAMES_CONFIG } from "../staticData/games.js";
 
+const PUBLIC_GA_URLS = {
+    "EU": "https://public-ga.spribegaming.com",
+    "HR": "https://public-ga-hr.spribegaming.com",
+    "AF": "https://af-south-1-public-ga.spribegaming.com",
+    "APAC": "https://public-ga.apac.spribegaming.com",
+    "SA": "https://sa-east-1-public-ga.spribegaming.com",
+    "STAGE": "https://public-ga.staging.spribe.io"
+};
+
 const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, onRegionDetected }) => {
     const [configData, setConfigData] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -10,11 +19,17 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
     const [fetchedUrl, setFetchedUrl] = useState(null);
     const [showJson, setShowJson] = useState(false);
 
+    // НОВЫЕ СТЕЙТЫ ДЛЯ PUBLIC GA
+    const [publicGaData, setPublicGaData] = useState(null);
+    const [gameStatus, setGameStatus] = useState('loading'); // 'enabled' | 'disabled' | 'unknown' | 'loading'
+
     useEffect(() => {
         setConfigData(null);
         setError(null);
         setFetchedUrl(null);
         setShowJson(false); 
+        setPublicGaData(null);
+        setGameStatus('loading');
     }, [gameId, operator, validationType, analyzedHost]);
 
     // === HELPER FUNCTIONS ===
@@ -102,6 +117,8 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         setLoading(true);
         setError(null);
         setConfigData(null);
+        setPublicGaData(null);
+        setGameStatus('loading');
 
         // 1. DETERMINE GAME PATH
         let urlGamePath = gameId;
@@ -135,7 +152,11 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
         const url = `${baseUrl}/${urlGamePath}/${fetchOperator}.json?t=${timestamp}`;
         setFetchedUrl(url);
 
+        let finalConfigData = null;
+        let finalRegionInfo = null;
+
         try {
+            // === ШАГ 1: ПОЛУЧАЕМ КОНФИГ ИЗ APP-CONFIG ===
             const response = await fetch(url);
 
             if (!response.ok) {
@@ -143,32 +164,69 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
                     const fallbackUrl = `${baseUrl}/${urlGamePath}/${fetchOperator}?t=${timestamp}`;
                     const fallbackResponse = await fetch(fallbackUrl);
                     if (fallbackResponse.ok) {
-                        const data = await fallbackResponse.json();
-                        setConfigData(data);
+                        finalConfigData = await fallbackResponse.json();
                         setFetchedUrl(fallbackUrl);
-                        
-                        const host = getGeneralHostForLinks(data);
-                        const regionInfo = getRegionInfo(host);
-                        if (onRegionDetected) onRegionDetected(regionInfo.code);
-                        return;
+                    } else {
+                        throw new Error(`HTTP Error: 404 Not Found`);
                     }
+                } else {
+                    throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
                 }
-                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+            } else {
+                finalConfigData = await response.json();
             }
 
-            const data = await response.json();
-            setConfigData(data);
+            setConfigData(finalConfigData);
 
-            const host = getGeneralHostForLinks(data);
-            const regionInfo = getRegionInfo(host);
-            if (onRegionDetected) onRegionDetected(regionInfo.code);
+            const host = getGeneralHostForLinks(finalConfigData);
+            finalRegionInfo = getRegionInfo(host);
+            if (onRegionDetected) onRegionDetected(finalRegionInfo.code);
 
         } catch (err) {
             console.error(err);
-            setError(`Failed to load config.\nURL: ${url}\nDetails: ${err.message}`);
-        } finally {
+            if (err.message.includes('404')) {
+                setError(`Game "${gameId.toUpperCase()}" is likely DISABLED for operator "${operator}".\n\nThe configuration file was not found (HTTP 404). This almost always means the game is turned off for this operator in this environment.\n\nURL checked: ${url}`);
+            } else {
+                setError(`Failed to load config.\nURL: ${url}\nDetails: ${err.message}`);
+            }
             setLoading(false);
+            setGameStatus('unknown');
+            return;
         }
+
+        // === ШАГ 2: ПОЛУЧАЕМ ТОЧНЫЕ ИГРЫ ИЗ PUBLIC GA ===
+        if (finalRegionInfo) {
+            const gaRegionCode = finalRegionInfo.code === "STAGE EU" ? "STAGE" : finalRegionInfo.code;
+            const gaBaseUrl = PUBLIC_GA_URLS[gaRegionCode];
+
+            if (gaBaseUrl) {
+                try {
+                    const gaRes = await fetch(`${gaBaseUrl}/v3/game/list?operator=${fetchOperator}`);
+                    if (gaRes.ok) {
+                        const gaData = await gaRes.json();
+                        setPublicGaData(gaData);
+                        
+                        if (gaData && gaData.games && Array.isArray(gaData.games)) {
+                            // Ищем игру по ключу в массиве games (balloon, aviator и т.д.)
+                            const isEnabled = gaData.games.some(g => g.key.toLowerCase() === gameId.toLowerCase());
+                            setGameStatus(isEnabled ? 'enabled' : 'disabled');
+                        } else {
+                            setGameStatus('unknown');
+                        }
+                    } else {
+                        setGameStatus('unknown');
+                    }
+                } catch (err) {
+                    console.warn("Public GA Fetch Error:", err);
+                    setGameStatus('unknown'); // CORS или сетевая ошибка - переходим на fallback
+                }
+            } else {
+                setGameStatus('unknown');
+            }
+        }
+
+        setLoading(false);
+
     }, [gameId, operator, isStageEnvironment, onRegionDetected, validationType]);
 
     useEffect(() => {
@@ -178,7 +236,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
     const renderGameData = () => {
         let host = "-";
         let zone = "-";
-        let isGameFound = true; 
+        let isGameFoundInConfig = true; 
         let isFallbackData = false; 
 
         if (configData?.ws && !configData?.games) {
@@ -191,7 +249,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
                 host = gameConfig.host || "-";
                 zone = gameConfig.zone || "-";
             } else {
-                isGameFound = false;
+                isGameFoundInConfig = false;
                 const availableGames = Object.keys(configData.games);
                 if (availableGames.length > 0) {
                     const firstGameKey = availableGames[0];
@@ -215,15 +273,56 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
 
         return (
             <div className="mb-6">
-                {!isGameFound && isFallbackData && (
-                    <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg mb-4 text-sm">
-                        ⚠️ Settings for <strong>{gameId}</strong> are missing! <strong>The game might not be enabled for this operator.</strong>
-                        <br/>
-                        Region parameters based on other games in the operator config are shown below.
+                
+                {/* 1. ИГРА ТОЧНО ВЫКЛЮЧЕНА */}
+                {gameStatus === 'disabled' && (
+                    <div className="p-4 bg-red-50 text-red-800 border border-red-300 rounded-lg mb-4 text-sm flex items-start gap-3 shadow-sm">
+                        <span className="text-xl">🚫</span>
+                        <div>
+                            <strong className="font-bold">Access Denied:</strong> Game <strong className="uppercase">{gameId}</strong> is officially DISABLED for operator <strong>{operator}</strong>.
+                            <br/>
+                            <span className="text-[10px] text-red-500 mt-1 block uppercase font-bold tracking-wide">
+                                Verified via Public GA API ({regionInfo.code})
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* 2. ИГРА ВКЛЮЧЕНА, НО НЕТ НАСТРОЕК (Fallback) */}
+                {gameStatus === 'enabled' && !isGameFoundInConfig && isFallbackData && (
+                    <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-300 rounded-lg mb-4 text-sm flex items-start gap-3 shadow-sm">
+                        <span className="text-xl">⚠️</span>
+                        <div>
+                            <strong className="font-bold">Settings Missing:</strong> Game <strong className="uppercase">{gameId}</strong> is ENABLED for operator <strong>{operator}</strong>, but specific connection settings are missing in the config.
+                            <br/>
+                            <span className="text-[10px] text-yellow-600 mt-1 block uppercase font-bold tracking-wide">
+                                Falling back to generic region parameters • Verified via Public GA API ({regionInfo.code})
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* 3. API НЕДОСТУПНО, СТАРЫЙ ЖЕЛТЫЙ ВАРНИНГ */}
+                {gameStatus === 'unknown' && !isGameFoundInConfig && isFallbackData && (
+                    <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-300 rounded-lg mb-4 text-sm flex items-start gap-3 shadow-sm">
+                        <span className="text-xl">⚠️</span>
+                        <div>
+                            Settings for <strong>{gameId}</strong> are missing! <strong>The game might not be enabled for this operator.</strong>
+                            <br/>
+                            <span className="text-[10px] text-yellow-600 mt-1 block">Region parameters based on other games in the operator config are shown below.</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* ИГРА ВКЛЮЧЕНА (ПРОСТО УСПЕШНЫЙ БЕЙДЖИК НАД ХОСТОМ) */}
+                {gameStatus === 'enabled' && isGameFoundInConfig && (
+                    <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-bold shadow-sm">
+                        <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                        GAME ENABLED
                     </div>
                 )}
                 
-                {(isGameFound || isFallbackData || configData?.ws) && (
+                {(isGameFoundInConfig || isFallbackData || configData?.ws) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
                         <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col items-center justify-center text-center h-full">
                             <span className={labelClass}>Detected Region</span>
@@ -266,10 +365,13 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
 
                 {error && (
                     <div className="mt-4 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
-                        <p className="font-bold">❌ Config loading error:</p>
-                        <p className="whitespace-pre-wrap mt-1">{error}</p>
-                        <button onClick={fetchConfig} className="mt-3 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition text-xs font-semibold">
-                            Retry
+                        <p className="font-bold flex items-center gap-2">
+                            <span className="text-lg">❌</span>
+                            {error.includes('DISABLED') ? 'Configuration Not Found' : 'Config loading error:'}
+                        </p>
+                        <p className="whitespace-pre-wrap mt-2">{error}</p>
+                        <button onClick={fetchConfig} className="mt-4 px-4 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded border border-red-300 transition text-xs font-bold shadow-sm">
+                            Retry Lookup
                         </button>
                     </div>
                 )}
@@ -277,7 +379,7 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
                 {configData && !loading && (
                     <div className="animate-fade-in">
                         <p className="text-xs text-gray-500 mb-4 flex justify-between">
-                            <span>Config for: <strong>{operator}</strong> / <strong>{gameId}</strong></span>
+                            <span>Config for: <strong>{operator}</strong> / <strong className="uppercase">{gameId}</strong></span>
                             <span className="font-mono text-[10px] text-gray-400">{fetchedUrl}</span>
                         </p>
                         
@@ -324,13 +426,22 @@ const OperatorConfigViewer = ({ gameId, operator, validationType, analyzedHost, 
                                 {showJson ? '🔼 Hide Raw JSON' : '🔽 Show Raw JSON'}
                             </button>
                             {showJson && (
-                                <div className="mt-3 relative group">
-                                    <pre className="p-4 bg-gray-900 text-green-400 rounded-lg overflow-auto text-xs font-mono border border-gray-700 shadow-inner max-h-96">
-                                        {JSON.stringify(configData, null, 2)}
-                                    </pre>
-                                    <button onClick={() => navigator.clipboard.writeText(JSON.stringify(configData, null, 2))} className="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Copy JSON
-                                    </button>
+                                <div className="mt-3 relative group space-y-4">
+                                    <div>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">App Config Data:</p>
+                                        <pre className="p-4 bg-gray-900 text-green-400 rounded-lg overflow-auto text-xs font-mono border border-gray-700 shadow-inner max-h-96">
+                                            {JSON.stringify(configData, null, 2)}
+                                        </pre>
+                                    </div>
+                                    
+                                    {publicGaData && (
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Public GA API Data (Active Games):</p>
+                                            <pre className="p-4 bg-gray-900 text-blue-400 rounded-lg overflow-auto text-xs font-mono border border-gray-700 shadow-inner max-h-96">
+                                                {JSON.stringify(publicGaData, null, 2)}
+                                            </pre>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
