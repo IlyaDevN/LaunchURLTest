@@ -30,7 +30,6 @@ const OperatorConfig = () => {
         }
         if (data.servers?.[0]?.host) return data.servers[0].host;
         if (data.ws?.host) return data.ws.host;
-        // ДОБАВЛЕНО: Фоллбэк на корневой уровень (для старых форматов конфигов типа multikeno)
         if (data.host) return data.host;
         return null;
     };
@@ -44,7 +43,6 @@ const OperatorConfig = () => {
         }
         if (data.servers?.[0]?.zone) return data.servers[0].zone;
         if (data.ws?.zone) return data.ws.zone;
-        // ДОБАВЛЕНО: Фоллбэк на корневой уровень
         if (data.zone) return data.zone;
         return "-";
     };
@@ -188,8 +186,7 @@ const OperatorConfig = () => {
     };
 
     // --- КОМПОНЕНТ СТРОКИ ---
-    const ConfigRow = ({ item, isGrid = false }) => {
-        const isAviator = item.type === 'aviator';
+    const ConfigRow = ({ item }) => {
         const isActive = item.status !== 'disabled';
         
         const allGamesList = [
@@ -221,7 +218,8 @@ const OperatorConfig = () => {
                 );
             }
 
-            if (hasGamesList) {
+            // 1. СЛОТЫ (Только список игр)
+            if (item.type === 'slots') {
                 return (
                     <div className="flex-grow p-3 overflow-y-auto">
                         <div className="flex flex-wrap gap-1 content-start">
@@ -239,18 +237,61 @@ const OperatorConfig = () => {
                 );
             }
 
+            // 2. AVIATOR И ТУРБО (Выровненный правый блок только с Host)
+            if (item.type === 'aviator' || item.type === 'turbo') {
+                return (
+                    <div className="flex-grow flex flex-row">
+                        {/* Левая часть: Для турбо - список игр, для авиатора - Zone */}
+                        <div className="flex-grow p-3 overflow-y-auto flex flex-col justify-center">
+                            {item.type === 'turbo' && (
+                                <div className="flex flex-wrap gap-1 content-start">
+                                    {allGamesList.map(g => (
+                                        <span key={g.name} className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                                            g.active 
+                                            ? 'bg-green-50 text-green-800 border-green-200' 
+                                            : 'bg-red-50 text-red-400 border-red-100 line-through decoration-red-300'
+                                        }`}>
+                                            {g.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                            {item.type === 'aviator' && item.zone !== '-' && (
+                                <div className="flex flex-col min-w-0 px-3">
+                                    <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Zone</span>
+                                    <span className="font-mono text-sm font-black text-gray-800 truncate leading-tight" title={item.zone}>
+                                        {item.zone}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        
+                        {/* Правый блок: Только Host с фиксированной шириной 50% для совпадения с сеткой */}
+                        <div className="w-1/2 xl:w-[calc(41%-8px)] flex-shrink-0 flex flex-col justify-center px-6 border-l border-gray-100 bg-gray-50/50 gap-2">
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Host</span>
+                                <span className="font-mono text-sm font-black text-gray-800 truncate leading-tight" title={item.host}>
+                                    {item.host || "N/A"}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 3. ОСТАЛЬНЫЕ ИГРЫ (Trader, Pilot-Chicken и др. в сетке)
             return (
-                <div className={`flex-grow flex ${isGrid ? 'flex-col justify-center px-4 gap-1' : 'flex-row items-center justify-start gap-10 px-8'}`}>
+                <div className="flex-grow flex flex-col justify-center px-6 bg-gray-50/50 gap-2">
                     <div className="flex flex-col min-w-0">
                         <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Host</span>
                         <span className="font-mono text-sm font-black text-gray-800 truncate leading-tight" title={item.host}>
                             {item.host || "N/A"}
                         </span>
                     </div>
-                    {(item.type === 'aviator' || item.zone !== '-') && (
-                        <div className={`flex flex-col min-w-0 ${isGrid ? '' : 'border-l border-gray-200 pl-8'}`}>
+                    {item.zone !== '-' && (
+                        <div className="flex flex-col min-w-0">
                             <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">Zone</span>
-                            <span className="font-mono text-sm font-black text-gray-800 truncate leading-tight">
+                            <span className="font-mono text-sm font-black text-gray-800 truncate leading-tight" title={item.zone}>
                                 {item.zone || "-"}
                             </span>
                         </div>
@@ -301,14 +342,14 @@ const OperatorConfig = () => {
                 <div className="bg-white p-6">
                     <div className="flex flex-col gap-4">
                         {fullWidthItems.map((item, idx) => (
-                            <ConfigRow key={idx} item={item} isGrid={false} />
+                            <ConfigRow key={idx} item={item} />
                         ))}
                     </div>
 
                     {gridItems.length > 0 && (
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                             {gridItems.map((item, idx) => (
-                                <ConfigRow key={idx} item={item} isGrid={true} />
+                                <ConfigRow key={idx} item={item} />
                             ))}
                         </div>
                     )}
@@ -328,8 +369,6 @@ const OperatorConfig = () => {
         <div className="flex flex-col h-full space-y-4 max-w-[1920px] mx-auto w-full pb-10">
             {/* SEARCH HEADER */}
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 sticky top-0 z-20">
-                {/* Используем h-9 (36px) для всех элементов управления.
-                */}
                 <div className="flex gap-4 items-center max-w-2xl mx-auto">
                     <h1 className="text-xl font-extrabold text-gray-900 whitespace-nowrap">
                          Config Viewer
@@ -361,7 +400,7 @@ const OperatorConfig = () => {
                     </button>
                 </div>
                 
-                {/* БЕЙДЖ СТАТУСА (В правом углу, абсолютное позиционирование) */}
+                {/* БЕЙДЖ СТАТУСА */}
                 {!loading && results.length > 0 && (
                     <div className="absolute top-1/2 -translate-y-1/2 right-4 hidden xl:block">
                         {hasProd && hasStage ? (
