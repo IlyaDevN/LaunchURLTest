@@ -30,6 +30,8 @@ const OperatorConfig = () => {
         }
         if (data.servers?.[0]?.host) return data.servers[0].host;
         if (data.ws?.host) return data.ws.host;
+        // ДОБАВЛЕНО: Фоллбэк на корневой уровень (для старых форматов конфигов типа multikeno)
+        if (data.host) return data.host;
         return null;
     };
 
@@ -42,6 +44,8 @@ const OperatorConfig = () => {
         }
         if (data.servers?.[0]?.zone) return data.servers[0].zone;
         if (data.ws?.zone) return data.ws.zone;
+        // ДОБАВЛЕНО: Фоллбэк на корневой уровень
+        if (data.zone) return data.zone;
         return "-";
     };
 
@@ -323,7 +327,7 @@ const OperatorConfig = () => {
     return (
         <div className="flex flex-col h-full space-y-4 max-w-[1920px] mx-auto w-full pb-10">
             {/* SEARCH HEADER */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 sticky top-0 z-20 relative">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 sticky top-0 z-20">
                 {/* Используем h-9 (36px) для всех элементов управления.
                 */}
                 <div className="flex gap-4 items-center max-w-2xl mx-auto">
