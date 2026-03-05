@@ -7,7 +7,7 @@ import { GAMES_CONFIG } from "../staticData/games.js";
 const REGIONS = [
     { name: "EU", url: "https://games-info.spribegaming.com/" },
     { name: "AF", url: "https://games-info-af.spribegaming.com/" },
-    { name: "APAC", url: "https://games-info.apac.spribegaming.com/" },
+    { name: "APAC", url: "https://games-info-ap.spribegaming.com/" },
     { name: "SA", url: "https://games-info-sa.spribegaming.com/" },
     { name: "HR", url: "https://games-info-hr.spribegaming.com/" },
     { name: "Stage", url: "https://games-info.staging.spribe.dev/" }
