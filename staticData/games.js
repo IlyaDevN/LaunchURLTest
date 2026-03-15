@@ -5,7 +5,7 @@
 export const GAMES_CONFIG = [
     // --- CRASH / MAIN ---
     { id: "aviator", name: "Aviator", provider: "spribe_aviator", category: "crash" },
-    { id: "pilot-chicken", name: "Pilot Chicken", provider: "spribe_aviator", category: "crash" }, // Провайдер предположительный
+    { id: "pilot-chicken", name: "Pilot Chicken", provider: "spribe_pilot_chicken", category: "crash" },
 
     // --- TURBO ---
     { id: "dice", name: "Dice", provider: "spribe_crypto", category: "turbo" },
